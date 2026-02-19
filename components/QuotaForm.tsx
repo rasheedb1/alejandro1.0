@@ -109,49 +109,52 @@ export default function QuotaForm() {
   async function handleAutoLoad() {
     setIsAutoLoading(true)
     setAutoLoadStatus(null)
-    try {
-      const [quotaRes, sqlsRes] = await Promise.all([
-        fetch(`/api/sheets-quota?month=${month}&year=${year}`),
-        fetch('/api/sf-sqls'),
-      ])
 
-      const quotaData = await quotaRes.json()
-      const sqlsData = await sqlsRes.json()
+    // Fetch both independently so a failure in one doesn't block the other
+    const [quotaResult, sqlsResult] = await Promise.allSettled([
+      fetch(`/api/sheets-quota?month=${month}&year=${year}`).then((r) => r.json()),
+      fetch('/api/sf-sqls').then((r) => r.json()),
+    ])
 
-      if (!quotaRes.ok) throw new Error(quotaData.error || 'Failed to load quotas')
-      if (!sqlsRes.ok) throw new Error(sqlsData.error || 'Failed to load SQLs')
+    const sheetSDRs: SheetSDRQuota[] =
+      quotaResult.status === 'fulfilled' && quotaResult.value.sdrs ? quotaResult.value.sdrs : []
+    const sfSQLs: { name: string; sqls: number }[] =
+      sqlsResult.status === 'fulfilled' && sqlsResult.value.sqls ? sqlsResult.value.sqls : []
 
-      const sheetSDRs: SheetSDRQuota[] = quotaData.sdrs ?? []
-      const sfSQLs: { name: string; sqls: number }[] = sqlsData.sqls ?? []
+    const quotaErr = quotaResult.status === 'rejected'
+      ? quotaResult.reason?.message
+      : quotaResult.value?.error
+    const sqlsErr = sqlsResult.status === 'rejected'
+      ? sqlsResult.reason?.message
+      : sqlsResult.value?.error
 
-      let matched = 0
-      const updatedSDRs = sdrs.map((sdr) => {
-        const sheetMatch = sheetSDRs.find((s) => namesMatch(sdr.name, s.fullName))
-        const sfMatch = sfSQLs.find((s) => namesMatch(sdr.name, s.name))
-        const newQuota = sheetMatch ? sheetMatch.quota : sdr.quota
-        const newSqls = sfMatch ? sfMatch.sqls : sdr.sqls
-        if (sheetMatch || sfMatch) matched++
-        return { ...sdr, quota: newQuota, sqls: newSqls }
-      })
+    let matched = 0
+    const updatedSDRs = sdrs.map((sdr) => {
+      const sheetMatch = sheetSDRs.find((s) => namesMatch(sdr.name, s.fullName))
+      const sfMatch = sfSQLs.find((s) => namesMatch(sdr.name, s.name))
+      const newQuota = sheetMatch ? sheetMatch.quota : sdr.quota
+      const newSqls = sfMatch ? sfMatch.sqls : sdr.sqls
+      if (sheetMatch || sfMatch) matched++
+      return { ...sdr, quota: newQuota, sqls: newSqls }
+    })
 
-      const newTeamQuota = updatedSDRs.reduce((sum, s) => sum + s.quota, 0)
-      const newSqlsMTD = updatedSDRs.reduce((sum, s) => sum + s.sqls, 0)
+    const newTeamQuota = updatedSDRs.reduce((sum, s) => sum + s.quota, 0)
+    const newSqlsMTD = updatedSDRs.reduce((sum, s) => sum + s.sqls, 0)
 
-      setSdrs(updatedSDRs)
-      setTeamQuota(newTeamQuota)
-      setSqlsMTD(newSqlsMTD)
+    setSdrs(updatedSDRs)
+    setTeamQuota(newTeamQuota)
+    setSqlsMTD(newSqlsMTD)
 
-      const total = sdrs.length
-      if (matched === total) {
-        setAutoLoadStatus({ type: 'success', message: `Loaded: quota from Sheets + SQLs from Salesforce (${total}/${total} SDRs matched)` })
-      } else {
-        setAutoLoadStatus({ type: 'partial', message: `Partial match: ${matched}/${total} SDRs matched. Check unmatched names.` })
-      }
-    } catch (err) {
-      setAutoLoadStatus({ type: 'error', message: err instanceof Error ? err.message : String(err) })
-    } finally {
-      setIsAutoLoading(false)
+    if (quotaErr || sqlsErr) {
+      const parts = [quotaErr && `Sheets: ${quotaErr}`, sqlsErr && `SF: ${sqlsErr}`].filter(Boolean)
+      setAutoLoadStatus({ type: 'error', message: parts.join(' · ') })
+    } else if (matched === sdrs.length) {
+      setAutoLoadStatus({ type: 'success', message: `Loaded quota + SQLs for all ${sdrs.length} SDRs` })
+    } else {
+      setAutoLoadStatus({ type: 'partial', message: `${matched}/${sdrs.length} SDRs matched — check unmatched names` })
     }
+
+    setIsAutoLoading(false)
   }
 
   async function handleSend() {
@@ -233,6 +236,21 @@ export default function QuotaForm() {
             </div>
           </div>
         </div>
+
+        {/* ── Auto-load Status ── */}
+        {isAutoLoading ? (
+          <div className="rounded-xl px-5 py-3 text-sm font-medium bg-purple-50 text-purple-700 border border-purple-200">
+            ⏳ Loading data from Salesforce & Google Sheets...
+          </div>
+        ) : autoLoadStatus && (
+          <div className={`rounded-xl px-5 py-3 text-sm font-medium ${
+            autoLoadStatus.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' :
+            autoLoadStatus.type === 'partial' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
+            'bg-red-50 text-red-700 border border-red-200'
+          }`}>
+            {autoLoadStatus.type === 'success' ? '✅ ' : autoLoadStatus.type === 'partial' ? '⚠️ ' : '❌ '}{autoLoadStatus.message}
+          </div>
+        )}
 
         {/* ── Team Metrics ── */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
@@ -413,21 +431,6 @@ export default function QuotaForm() {
           />
           <p className="text-xs text-gray-400 mt-1.5">Separate multiple emails with commas or new lines</p>
         </div>
-
-        {/* ── Auto-load Status ── */}
-        {isAutoLoading ? (
-          <div className="rounded-xl px-5 py-4 text-sm font-medium bg-purple-50 text-purple-700 border border-purple-200">
-            ⏳ Loading data from Salesforce & Google Sheets...
-          </div>
-        ) : autoLoadStatus && (
-          <div className={`rounded-xl px-5 py-4 text-sm font-medium ${
-            autoLoadStatus.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' :
-            autoLoadStatus.type === 'partial' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
-            'bg-red-50 text-red-700 border border-red-200'
-          }`}>
-            {autoLoadStatus.type === 'success' ? '✅ ' : autoLoadStatus.type === 'partial' ? '⚠️ ' : '❌ '}{autoLoadStatus.message}
-          </div>
-        )}
 
         {/* ── Result ── */}
         {result && (
