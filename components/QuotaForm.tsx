@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { SDR, Region } from '@/types'
 import { calculateTeamMetrics, calculateSDRMetrics, MONTHS } from '@/lib/calculations'
 import { generateEmailHTML } from '@/lib/emailTemplate'
@@ -58,6 +58,11 @@ export default function QuotaForm() {
   const [autoLoadStatus, setAutoLoadStatus] = useState<{ type: 'success' | 'partial' | 'error'; message: string } | null>(null)
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    handleAutoLoad()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [month, year])
 
   const metrics = calculateTeamMetrics(teamQuota, sqlsMTD, month, year)
   const calculatedSDRs = sdrs.map((s) =>
@@ -410,7 +415,11 @@ export default function QuotaForm() {
         </div>
 
         {/* ── Auto-load Status ── */}
-        {autoLoadStatus && (
+        {isAutoLoading ? (
+          <div className="rounded-xl px-5 py-4 text-sm font-medium bg-purple-50 text-purple-700 border border-purple-200">
+            ⏳ Loading data from Salesforce & Google Sheets...
+          </div>
+        ) : autoLoadStatus && (
           <div className={`rounded-xl px-5 py-4 text-sm font-medium ${
             autoLoadStatus.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' :
             autoLoadStatus.type === 'partial' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
@@ -428,29 +437,20 @@ export default function QuotaForm() {
         )}
 
         {/* ── Actions ── */}
-        <div className="flex flex-col gap-3 pb-10">
+        <div className="flex gap-3 pb-10">
           <button
-            onClick={handleAutoLoad}
-            disabled={isAutoLoading}
-            className="w-full py-3.5 rounded-xl border-2 border-indigo-500 text-indigo-600 font-semibold text-sm hover:bg-indigo-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            onClick={() => setShowPreview(true)}
+            className="flex-1 py-3.5 rounded-xl border-2 border-purple-600 text-purple-600 font-semibold text-sm hover:bg-purple-50 transition-colors"
           >
-            {isAutoLoading ? '⏳ Loading from Salesforce & Sheets...' : '⚡ Auto-load Data'}
+            👁 Preview Email
           </button>
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowPreview(true)}
-              className="flex-1 py-3.5 rounded-xl border-2 border-purple-600 text-purple-600 font-semibold text-sm hover:bg-purple-50 transition-colors"
-            >
-              👁 Preview Email
-            </button>
-            <button
-              onClick={handleSend}
-              disabled={isSending || !recipients.trim()}
-              className="flex-1 py-3.5 rounded-xl bg-purple-600 text-white font-semibold text-sm hover:bg-purple-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-purple-200"
-            >
-              {isSending ? 'Sending...' : '🚀 Send Report'}
-            </button>
-          </div>
+          <button
+            onClick={handleSend}
+            disabled={isSending || !recipients.trim()}
+            className="flex-1 py-3.5 rounded-xl bg-purple-600 text-white font-semibold text-sm hover:bg-purple-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-purple-200"
+          >
+            {isSending ? 'Sending...' : '🚀 Send Report'}
+          </button>
         </div>
       </div>
 
