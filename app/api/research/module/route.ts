@@ -66,17 +66,35 @@ export async function POST(req: Request) {
       }
     }
 
-    // Parse JSON (Claude may wrap it in markdown code blocks)
+    // Parse JSON — try multiple strategies since Claude sometimes wraps it in text/code blocks
     let data: Record<string, unknown> = {}
     try {
-      const jsonMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/)
-      if (jsonMatch) {
-        data = JSON.parse(jsonMatch[1].trim())
+      // Strategy 1: JSON in a markdown code block (```json ... ``` or ``` ... ```)
+      const codeBlockMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/)
+      if (codeBlockMatch) {
+        data = JSON.parse(codeBlockMatch[1].trim())
       } else {
-        data = JSON.parse(rawText.trim())
+        // Strategy 2: Raw JSON starting at first { and ending at last }
+        const start = rawText.indexOf('{')
+        const end = rawText.lastIndexOf('}')
+        if (start !== -1 && end !== -1 && end > start) {
+          data = JSON.parse(rawText.slice(start, end + 1))
+        } else {
+          data = JSON.parse(rawText.trim())
+        }
       }
     } catch {
-      data = { raw_text: rawText, parse_error: true }
+      // Strategy 3: try trimming leading/trailing text and parsing the largest JSON-like block
+      try {
+        const jsonLike = rawText.match(/\{[\s\S]*\}/)
+        if (jsonLike) {
+          data = JSON.parse(jsonLike[0])
+        } else {
+          data = { raw_text: rawText, parse_error: true }
+        }
+      } catch {
+        data = { raw_text: rawText, parse_error: true }
+      }
     }
 
     return NextResponse.json({ moduleId, data, rawText })

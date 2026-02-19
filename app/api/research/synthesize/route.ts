@@ -49,14 +49,29 @@ export async function POST(req: Request) {
 
     let data: Record<string, unknown> = {}
     try {
-      const jsonMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/)
-      if (jsonMatch) {
-        data = JSON.parse(jsonMatch[1].trim())
+      const codeBlockMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/)
+      if (codeBlockMatch) {
+        data = JSON.parse(codeBlockMatch[1].trim())
       } else {
-        data = JSON.parse(rawText.trim())
+        const start = rawText.indexOf('{')
+        const end = rawText.lastIndexOf('}')
+        if (start !== -1 && end !== -1 && end > start) {
+          data = JSON.parse(rawText.slice(start, end + 1))
+        } else {
+          data = JSON.parse(rawText.trim())
+        }
       }
     } catch {
-      data = { raw_text: rawText, parse_error: true }
+      try {
+        const jsonLike = rawText.match(/\{[\s\S]*\}/)
+        if (jsonLike) {
+          data = JSON.parse(jsonLike[0])
+        } else {
+          data = { raw_text: rawText, parse_error: true }
+        }
+      } catch {
+        data = { raw_text: rawText, parse_error: true }
+      }
     }
 
     return NextResponse.json(data)

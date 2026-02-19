@@ -92,12 +92,14 @@ function renderObject(obj: Record<string, unknown>, depth = 0): React.ReactNode 
     yuno_angle: 'Yuno angle',
     name: 'Name',
     confidence: 'Confidence',
+    type: 'Type',
     complaints_found: 'Complaints found',
     severity: 'Severity',
     complaint_themes: 'Complaint themes',
     affected_markets: 'Affected markets',
     fraud_mentions: 'Fraud mentions',
     checkout_ux_issues: 'Checkout UX issues',
+    support_quality: 'Support quality',
     outreach_angle: 'Outreach angle',
     theme: 'Theme',
     frequency: 'Frequency',
@@ -107,6 +109,7 @@ function renderObject(obj: Record<string, unknown>, depth = 0): React.ReactNode 
     ma_activity: 'M&A activity',
     expansion_urgency: 'Urgency',
     role: 'Role',
+    level: 'Level',
     location: 'Location',
     signals: 'Signals',
     timeline: 'Timeline',
@@ -116,9 +119,21 @@ function renderObject(obj: Record<string, unknown>, depth = 0): React.ReactNode 
     trigger_events: 'Trigger events',
     headline: 'Headline',
     date: 'Date',
+    source: 'Source',
     category: 'Category',
     summary: 'Summary',
     relevance_to_yuno: 'Relevance to Yuno',
+    // company_overview new fields
+    scale_metrics: 'Scale metrics',
+    // local_entity new fields
+    registration_id: 'Registration ID',
+    // payment_methods new fields
+    how_confirmed: 'How confirmed',
+    // psp_detection new fields
+    yuno_existing_relationship: 'Yuno relationship',
+    yuno_relationship_details: 'Yuno details',
+    // expansion new fields
+    market: 'Market',
   }
 
   const skip = ['key_insight', 'parse_error', 'raw_text', 'notes']
@@ -226,7 +241,14 @@ export default function ModuleCard({ module, index }: ModuleCardProps) {
       {module.status === 'done' && expanded && (
         <div className="px-4 pb-4 border-t border-gray-100 pt-4">
           {module.data.parse_error ? (
-            <p className="text-sm text-gray-600 whitespace-pre-wrap">{String(module.data.raw_text || '')}</p>
+            <div className="space-y-2">
+              <p className="text-xs text-amber-600 font-semibold bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                Raw output — could not parse structured data
+              </p>
+              <p className="text-sm text-gray-600 whitespace-pre-wrap font-mono text-xs bg-gray-50 rounded-lg p-3 max-h-96 overflow-y-auto">
+                {String(module.data.raw_text || '')}
+              </p>
+            </div>
           ) : (
             renderObject(module.data)
           )}
