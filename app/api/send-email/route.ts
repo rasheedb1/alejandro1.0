@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 export async function POST(req: Request) {
   try {
     const { html, recipients, subject, screenshotBase64, screenshotName } = await req.json()
@@ -16,10 +14,12 @@ export async function POST(req: Request) {
 
     if (!process.env.RESEND_API_KEY) {
       return NextResponse.json(
-        { success: false, error: 'RESEND_API_KEY not configured. Add it to your environment variables.' },
+        { success: false, error: 'RESEND_API_KEY not configured. Add it to your Vercel environment variables.' },
         { status: 500 }
       )
     }
+
+    const resend = new Resend(process.env.RESEND_API_KEY)
 
     // Build attachments array for the screenshot
     const attachments: { filename: string; content: string }[] = []
