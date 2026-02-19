@@ -32,9 +32,9 @@ export function generateEmailHTML({
     daysInMonth,
   } = metrics
 
-  const shouldBePct = teamQuota > 0 ? ((shouldBe / teamQuota) * 100).toFixed(1) : '0.0'
   const totalAchColors = achievementStyle(totalAchievement)
   const mtdAchColors = achievementStyle(mtdAchievement)
+
 
   const sdrRows = sdrs
     .map((sdr) => {
@@ -124,10 +124,10 @@ export function generateEmailHTML({
                   </td>
                   <td width="2%"></td>
                   <!-- CARD 3: Should Be % MTD -->
-                  <td width="23%" style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:16px 10px;text-align:center;">
-                    <p style="margin:0 0 4px;color:#0369a1;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">Should Be % MTD</p>
-                    <p style="margin:0;color:#0c4a6e;font-size:38px;font-weight:800;line-height:1;">${shouldBePct}%</p>
-                    <p style="margin:5px 0 0;color:#7dd3fc;font-size:11px;">of total quota</p>
+                  <td width="23%" style="background:${mtdAchColors.bg};border:1px solid ${mtdAchColors.border};border-radius:12px;padding:16px 10px;text-align:center;">
+                    <p style="margin:0 0 4px;color:${mtdAchColors.text};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">Should Be % MTD</p>
+                    <p style="margin:0;color:${mtdAchColors.text};font-size:38px;font-weight:800;line-height:1;">${mtdAchievement.toFixed(1)}%</p>
+                    <p style="margin:5px 0 0;color:${mtdAchColors.text};font-size:11px;opacity:0.75;">SQLs vs pace</p>
                   </td>
                   <td width="2%"></td>
                   <!-- CARD 4: Monthly Achievement -->
