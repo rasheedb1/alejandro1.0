@@ -41,6 +41,7 @@ export type Region = 'US' | 'LATAM' | 'APAC' | 'EMEA' | 'Global'
 
 export type ModuleId =
   | 'company_overview'
+  | 'website_traffic'
   | 'top_markets'
   | 'local_entity'
   | 'payment_methods'
@@ -76,6 +77,33 @@ export interface ScoreCriterion {
   description: string
 }
 
+export interface StrategicInsight {
+  number: number
+  title: string
+  detail: string
+  priority: 'High' | 'Medium' | 'Low'
+}
+
+export interface SimilarCompany {
+  name: string
+  domain: string
+  why_relevant: string
+  estimated_opportunity: 'High' | 'Medium' | 'Low'
+}
+
+export interface ProspectScore {
+  name: string
+  domain: string
+  estimated_score: number
+  rationale: string
+}
+
+export interface SimilarCompanies {
+  direct_competitors: SimilarCompany[]
+  industry_peers: SimilarCompany[]
+  prospect_scoring: ProspectScore[]
+}
+
 export interface ResearchReport {
   id?: string
   input: ResearchInput
@@ -84,6 +112,8 @@ export interface ResearchReport {
   executiveSummary: string
   modules: ModuleResult[]
   talkingPoints: string[]
+  strategicInsights?: StrategicInsight[]
+  similarCompanies?: SimilarCompanies
   createdAt?: string
 }
 
@@ -142,6 +172,7 @@ export const SDR_TEAM = [
 
 export const MODULE_TITLES: Record<ModuleId, string> = {
   company_overview: 'Company Overview',
+  website_traffic: 'Website Traffic Analysis',
   top_markets: 'Top Markets Analysis',
   local_entity: 'Local Entity & Cross-Border Analysis',
   payment_methods: 'Checkout & Payment Methods',
@@ -153,6 +184,7 @@ export const MODULE_TITLES: Record<ModuleId, string> = {
 
 export const MODULE_ORDER: ModuleId[] = [
   'company_overview',
+  'website_traffic',
   'top_markets',
   'local_entity',
   'payment_methods',

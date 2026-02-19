@@ -134,6 +134,22 @@ function renderObject(obj: Record<string, unknown>, depth = 0): React.ReactNode 
     yuno_relationship_details: 'Yuno details',
     // expansion new fields
     market: 'Market',
+    // website_traffic fields
+    monthly_visits_web: 'Monthly Web Visits',
+    monthly_app_downloads: 'Monthly App Downloads',
+    top_countries: 'Top Countries',
+    traffic_share: 'Traffic Share',
+    signal: 'Signal',
+    apm_context: 'APM Context',
+    audience_demographics: 'Audience Demographics',
+    age_group: 'Age Group',
+    device_split: 'Device Split',
+    key_observations: 'Key Observations',
+    data_sources: 'Data Sources',
+    cross_border_gap_table: 'Cross-Border Gap Analysis',
+    crossborder_probability: 'Cross-Border Probability',
+    crossborder_fee_risk: 'Cross-Border Fee Risk',
+    yuno_opportunity: 'Yuno Opportunity',
   }
 
   const skip = ['key_insight', 'parse_error', 'raw_text', 'notes']
@@ -172,6 +188,7 @@ function renderObject(obj: Record<string, unknown>, depth = 0): React.ReactNode 
 
 const MODULE_ICONS: Record<string, string> = {
   company_overview: '🏢',
+  website_traffic: '📊',
   top_markets: '🌍',
   local_entity: '🏛️',
   payment_methods: '💳',

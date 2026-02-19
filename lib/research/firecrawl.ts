@@ -122,6 +122,15 @@ export function getScrapeTargets(moduleId: ModuleId, input: ResearchInput): stri
         `https://${primary}/press-releases`,
       ]
 
+    case 'website_traffic':
+      // SimilarWeb profile + Business of Apps for traffic data and app download stats
+      return [
+        `https://www.similarweb.com/website/${primary}/`,
+        `https://www.businessofapps.com/data/${slug}/`,
+        `https://appfollow.io/apps/${rootName}`,
+        `https://${primary}/press`,
+      ]
+
     case 'top_markets':
       // Careers page reveals countries where they're actively hiring
       return [

@@ -117,6 +117,8 @@ export default function NewResearchPage() {
         scoreBreakdown: synthData.score_breakdown || [],
         executiveSummary: synthData.executive_summary || '',
         talkingPoints: synthData.talking_points || [],
+        strategicInsights: synthData.strategic_insights || [],
+        similarCompanies: synthData.similar_companies || undefined,
       }
       setReport(finalReport)
     } catch (err) {

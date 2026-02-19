@@ -25,6 +25,53 @@ export function getModulePrompt(moduleId: ModuleId, input: ResearchInput): strin
     : `Website: ${domain}`
 
   const prompts: Record<ModuleId, string> = {
+    website_traffic: `${YUNO_CONTEXT}
+
+Research web traffic, app usage, and audience analytics for "${companyName}" (${domainsNote}).
+
+Search for:
+- SimilarWeb: site:similarweb.com "${companyName}" OR "${domain}" — look for monthly visits, top countries, traffic share %, global rank
+- SEMrush: "${companyName} semrush traffic by country"
+- App downloads: "${companyName} app downloads" on Business of Apps (businessofapps.com), Sensor Tower, AppFollow, AppMagic
+- "${companyName} monthly active users" OR "${companyName} MAU" OR "${companyName} DAU"
+- "${companyName} user demographics" — age, gender breakdown
+- "${companyName} traffic by country" OR "${companyName} top markets traffic"
+- Any investor presentations, earnings calls, or press releases mentioning user numbers by country
+
+For each top country, identify which local APMs are dominant there — because that tells us which payment methods ${companyName} NEEDS to support. Example: If Brazil is top 2 country, Pix is critical; if India is top 3, UPI is critical.
+
+Return JSON:
+{
+  "monthly_visits_web": "~XX.XM (source: SimilarWeb/SEMrush, date)",
+  "monthly_visits_trend": "Growing/Stable/Declining — YoY change if available",
+  "app_downloads_total": "~XXM total downloads (source, date)",
+  "app_downloads_breakdown": "US: 15%, India: 13%, etc. if available",
+  "monthly_active_users": "~XX.XM MAU if found, null otherwise",
+  "global_rank": "SimilarWeb global rank e.g. #131,556",
+  "audience_demographics": {
+    "gender": "XX% male, XX% female (source)",
+    "largest_age_group": "25-34 (source)",
+    "notes": "Any other demographic insight"
+  },
+  "top_countries": [
+    {
+      "country": "United States",
+      "est_traffic_share": "35%",
+      "signal": "High/Medium/Low",
+      "critical_local_apms": "Apple Pay, Google Pay, Afterpay/BNPL",
+      "notes": "Specific evidence: e.g. '35% of web traffic per SimilarWeb Jan 2025'"
+    }
+  ],
+  "key_observations": [
+    "High-priority markets for local APM coverage based on traffic: India (UPI — 80% of digital transactions), Brazil (Pix — dominant), Mexico (OXXO — 50% of cash transactions)",
+    "Any other traffic insight relevant to payment localization"
+  ],
+  "data_sources": ["SimilarWeb", "Business of Apps", "etc. — list actual sources used"],
+  "key_insight": "The single most important traffic finding for Yuno's pitch — which high-traffic markets are underserved by local payment methods?"
+}
+
+List at least 8-10 top countries with traffic signals. Focus on markets where local APM gaps would translate to real conversion losses.`,
+
     company_overview: `${YUNO_CONTEXT}
 
 Research the company "${companyName}" (${domainsNote}) in the ${industry} industry.
@@ -106,7 +153,7 @@ For each market, search:
 - Local business registries: CNPJ (Brazil), RFC (Mexico), RUT (Chile), CUIT (Argentina), NIT (Colombia), RUC (Peru/Ecuador)
 - Dun & Bradstreet, EMIS, Crunchbase for subsidiary listings
 
-Return JSON — be specific about entity names and registration numbers when found:
+Return JSON — be specific about entity names and registration numbers when found. Include BOTH the detailed entity list AND the cross-border gap summary table:
 {
   "entities": [
     {
@@ -128,7 +175,27 @@ Return JSON — be specific about entity names and registration numbers when fou
       "evidence": "What you searched and why no entity was found"
     }
   ],
-  "cross_border_opportunity": "How many of their X key markets have no confirmed local entity, and what the Yuno opportunity is for those markets",
+  "cross_border_gap_table": [
+    {
+      "market": "Brazil",
+      "traffic_signal": "High/Medium/Low — from web traffic data if known",
+      "has_local_entity": true,
+      "entity_summary": "Rappi Brasil Ltda (CNPJ: 26.900.161/0001-25) — confirmed",
+      "crossborder_probability": "Low",
+      "crossborder_fee_risk": "Low — local entity confirmed, likely local acquiring",
+      "yuno_opportunity": "APM coverage gaps (Boleto not confirmed), not cross-border fees"
+    },
+    {
+      "market": "Uruguay",
+      "traffic_signal": "Low",
+      "has_local_entity": false,
+      "entity_summary": "No entity found — only 2 cities (Montevideo, Punta del Este)",
+      "crossborder_probability": "High",
+      "crossborder_fee_risk": "High — likely paying 2-4% extra cross-border processing fees from Colombia hub",
+      "yuno_opportunity": "Enable local acquiring via Yuno's local PSP network in Uruguay"
+    }
+  ],
+  "cross_border_opportunity": "Summary: X of their Y key markets have no confirmed local entity. In those markets they are likely processing cross-border, paying 2-4% extra in fees. Specific Yuno opportunity: ...",
   "key_insight": "The single most important finding about their entity structure for a Yuno pitch"
 }`,
 
@@ -379,7 +446,65 @@ Return a JSON object with this exact structure:
     "Third talking point — focus on expansion: specific new market entry and the payment infrastructure need it creates",
     "Fourth talking point — focus on financial pressure: IPO prep, CFO hire, investor scrutiny on approval rates or processing costs",
     "Fifth talking point — tie it together: the compounding nature of their payment complexity and why Yuno's orchestration layer is the right-size solution"
-  ]
+  ],
+  "strategic_insights": [
+    {
+      "number": 1,
+      "title": "Short title for this insight (e.g. 'APM Coverage Gap in Brazil')",
+      "detail": "2-4 sentence detailed explanation of the specific opportunity for Yuno. Reference exact data points from the research. Explain the business impact, the root cause, and HOW Yuno solves it specifically for this company. Be strategic and specific — this is for a deeper discovery conversation, not cold outreach.",
+      "priority": "High"
+    },
+    {
+      "number": 2,
+      "title": "Second strategic insight title",
+      "detail": "Detailed explanation...",
+      "priority": "High"
+    },
+    {
+      "number": 3,
+      "title": "Third strategic insight title",
+      "detail": "Detailed explanation...",
+      "priority": "Medium"
+    },
+    {
+      "number": 4,
+      "title": "Fourth strategic insight title",
+      "detail": "Detailed explanation...",
+      "priority": "Medium"
+    },
+    {
+      "number": 5,
+      "title": "Fifth strategic insight title",
+      "detail": "Detailed explanation...",
+      "priority": "Low"
+    }
+  ],
+  "similar_companies": {
+    "direct_competitors": [
+      {
+        "name": "Competitor company name",
+        "domain": "competitor.com",
+        "why_relevant": "Direct competitor in same vertical and markets — likely has same payment challenges. If we win them, we can use as a reference.",
+        "estimated_opportunity": "High"
+      }
+    ],
+    "industry_peers": [
+      {
+        "name": "Peer company name",
+        "domain": "peer.com",
+        "why_relevant": "Same industry, similar payment complexity — multi-market, multi-PSP, same APM gaps likely apply",
+        "estimated_opportunity": "Medium"
+      }
+    ],
+    "prospect_scoring": [
+      {
+        "name": "Company name",
+        "domain": "company.com",
+        "estimated_score": 8,
+        "rationale": "Brief rationale for score — why this competitor/peer is a strong Yuno prospect"
+      }
+    ]
+  }
 }
 
 CRITICAL RULES for talking points:
@@ -389,5 +514,9 @@ CRITICAL RULES for talking points:
 - If an IPO or fundraise was found, at least one talking point must reference investor scrutiny on payment metrics
 - Each talking point should be usable as a verbatim opening line in a cold outreach email or call
 
-The opportunity_score should be between 1-10. Sum the "impact" values of criteria where "present": true, then normalize to a 10-point scale based on the maximum possible score (7.5 = 10/10).`
+The opportunity_score should be between 1-10. Sum the "impact" values of criteria where "present": true, then normalize to a 10-point scale based on the maximum possible score (7.5 = 10/10).
+
+For strategic_insights: These should be DIFFERENT from talking_points. Talking points are short hooks for cold outreach. Strategic insights are deeper, more analytical explanations for discovery calls — explain the root cause, the business impact with numbers, and the specific Yuno solution architecture that addresses it. Think "what would a payment consultant say in a 30-minute discovery call."
+
+For similar_companies: Based on what you know about the research company's industry, geography, and payment complexity, identify 3-5 direct competitors and 3-5 industry peers who likely face the same payment challenges. These become a prospecting list for the SDR. Score each one 1-10 based on likely Yuno fit (multi-market = +2, no orchestrator = +2, many APM gaps = +2, active expansion = +2, strong financials = +2).`
 }
