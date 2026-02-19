@@ -5,6 +5,14 @@ import { SDR, Region } from '@/types'
 import { calculateTeamMetrics, calculateSDRMetrics, MONTHS } from '@/lib/calculations'
 import { generateEmailHTML } from '@/lib/emailTemplate'
 import EmailPreview from './EmailPreview'
+import type { SheetSDRQuota } from '@/app/api/sheets-quota/route'
+
+function normName(s: string): string[] {
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/)
+}
+function namesMatch(formName: string, sheetFullName: string): boolean {
+  return normName(formName)[0] === normName(sheetFullName)[0]
+}
 
 const DEFAULT_SDRS: SDR[] = [
   { id: '1', name: 'German Tatis', region: 'US', sqls: 0, quota: 0 },
@@ -46,6 +54,8 @@ export default function QuotaForm() {
   const [screenshotName, setScreenshotName] = useState('')
   const [showPreview, setShowPreview] = useState(false)
   const [isSending, setIsSending] = useState(false)
+  const [isAutoLoading, setIsAutoLoading] = useState(false)
+  const [autoLoadStatus, setAutoLoadStatus] = useState<{ type: 'success' | 'partial' | 'error'; message: string } | null>(null)
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -89,6 +99,54 @@ export default function QuotaForm() {
     setScreenshot(null)
     setScreenshotName('')
     if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  async function handleAutoLoad() {
+    setIsAutoLoading(true)
+    setAutoLoadStatus(null)
+    try {
+      const [quotaRes, sqlsRes] = await Promise.all([
+        fetch(`/api/sheets-quota?month=${month}&year=${year}`),
+        fetch('/api/sf-sqls'),
+      ])
+
+      const quotaData = await quotaRes.json()
+      const sqlsData = await sqlsRes.json()
+
+      if (!quotaRes.ok) throw new Error(quotaData.error || 'Failed to load quotas')
+      if (!sqlsRes.ok) throw new Error(sqlsData.error || 'Failed to load SQLs')
+
+      const sheetSDRs: SheetSDRQuota[] = quotaData.sdrs ?? []
+      const sfSQLs: { name: string; sqls: number }[] = sqlsData.sqls ?? []
+
+      let matched = 0
+      const updatedSDRs = sdrs.map((sdr) => {
+        const sheetMatch = sheetSDRs.find((s) => namesMatch(sdr.name, s.fullName))
+        const sfMatch = sfSQLs.find((s) => namesMatch(sdr.name, s.name))
+        const newQuota = sheetMatch ? sheetMatch.quota : sdr.quota
+        const newSqls = sfMatch ? sfMatch.sqls : sdr.sqls
+        if (sheetMatch || sfMatch) matched++
+        return { ...sdr, quota: newQuota, sqls: newSqls }
+      })
+
+      const newTeamQuota = updatedSDRs.reduce((sum, s) => sum + s.quota, 0)
+      const newSqlsMTD = updatedSDRs.reduce((sum, s) => sum + s.sqls, 0)
+
+      setSdrs(updatedSDRs)
+      setTeamQuota(newTeamQuota)
+      setSqlsMTD(newSqlsMTD)
+
+      const total = sdrs.length
+      if (matched === total) {
+        setAutoLoadStatus({ type: 'success', message: `Loaded: quota from Sheets + SQLs from Salesforce (${total}/${total} SDRs matched)` })
+      } else {
+        setAutoLoadStatus({ type: 'partial', message: `Partial match: ${matched}/${total} SDRs matched. Check unmatched names.` })
+      }
+    } catch (err) {
+      setAutoLoadStatus({ type: 'error', message: err instanceof Error ? err.message : String(err) })
+    } finally {
+      setIsAutoLoading(false)
+    }
   }
 
   async function handleSend() {
@@ -351,6 +409,17 @@ export default function QuotaForm() {
           <p className="text-xs text-gray-400 mt-1.5">Separate multiple emails with commas or new lines</p>
         </div>
 
+        {/* ── Auto-load Status ── */}
+        {autoLoadStatus && (
+          <div className={`rounded-xl px-5 py-4 text-sm font-medium ${
+            autoLoadStatus.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' :
+            autoLoadStatus.type === 'partial' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
+            'bg-red-50 text-red-700 border border-red-200'
+          }`}>
+            {autoLoadStatus.type === 'success' ? '✅ ' : autoLoadStatus.type === 'partial' ? '⚠️ ' : '❌ '}{autoLoadStatus.message}
+          </div>
+        )}
+
         {/* ── Result ── */}
         {result && (
           <div className={`rounded-xl px-5 py-4 text-sm font-medium ${result.success ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
@@ -359,20 +428,29 @@ export default function QuotaForm() {
         )}
 
         {/* ── Actions ── */}
-        <div className="flex gap-3 pb-10">
+        <div className="flex flex-col gap-3 pb-10">
           <button
-            onClick={() => setShowPreview(true)}
-            className="flex-1 py-3.5 rounded-xl border-2 border-purple-600 text-purple-600 font-semibold text-sm hover:bg-purple-50 transition-colors"
+            onClick={handleAutoLoad}
+            disabled={isAutoLoading}
+            className="w-full py-3.5 rounded-xl border-2 border-indigo-500 text-indigo-600 font-semibold text-sm hover:bg-indigo-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            👁 Preview Email
+            {isAutoLoading ? '⏳ Loading from Salesforce & Sheets...' : '⚡ Auto-load Data'}
           </button>
-          <button
-            onClick={handleSend}
-            disabled={isSending || !recipients.trim()}
-            className="flex-1 py-3.5 rounded-xl bg-purple-600 text-white font-semibold text-sm hover:bg-purple-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-purple-200"
-          >
-            {isSending ? 'Sending...' : '🚀 Send Report'}
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowPreview(true)}
+              className="flex-1 py-3.5 rounded-xl border-2 border-purple-600 text-purple-600 font-semibold text-sm hover:bg-purple-50 transition-colors"
+            >
+              👁 Preview Email
+            </button>
+            <button
+              onClick={handleSend}
+              disabled={isSending || !recipients.trim()}
+              className="flex-1 py-3.5 rounded-xl bg-purple-600 text-white font-semibold text-sm hover:bg-purple-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-purple-200"
+            >
+              {isSending ? 'Sending...' : '🚀 Send Report'}
+            </button>
+          </div>
         </div>
       </div>
 
