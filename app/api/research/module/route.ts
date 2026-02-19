@@ -71,35 +71,57 @@ export async function POST(req: Request) {
       }
     }
 
+    // Helper: try JSON.parse, then retry after stripping trailing commas
+    function tryParse(str: string): Record<string, unknown> | null {
+      try { return JSON.parse(str) } catch { /* fall through */ }
+      try { return JSON.parse(str.replace(/,(\s*[}\]])/g, '$1')) } catch { /* fall through */ }
+      return null
+    }
+
+    // Helper: walk backwards from the last '}' to find its matching '{'.
+    // This correctly handles preamble text that itself contains '{' characters
+    // (e.g. "Based on my research {date: 2025}: { ...json... }").
+    function extractOutermostJSON(text: string): string | null {
+      const end = text.lastIndexOf('}')
+      if (end === -1) return null
+      let depth = 0
+      for (let i = end; i >= 0; i--) {
+        if (text[i] === '}') depth++
+        if (text[i] === '{') {
+          depth--
+          if (depth === 0) return text.slice(i, end + 1)
+        }
+      }
+      return null
+    }
+
     // Parse JSON — try multiple strategies since Claude sometimes wraps it in text/code blocks
     let data: Record<string, unknown> = {}
-    try {
-      // Strategy 1: JSON in a markdown code block (```json ... ``` or ``` ... ```)
-      const codeBlockMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/)
-      if (codeBlockMatch) {
-        data = JSON.parse(codeBlockMatch[1].trim())
-      } else {
-        // Strategy 2: Raw JSON starting at first { and ending at last }
-        const start = rawText.indexOf('{')
-        const end = rawText.lastIndexOf('}')
-        if (start !== -1 && end !== -1 && end > start) {
-          data = JSON.parse(rawText.slice(start, end + 1))
-        } else {
-          data = JSON.parse(rawText.trim())
-        }
+
+    // Strategy 1: JSON in a markdown code block (```json ... ``` or ``` ... ```)
+    const codeBlockMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/)
+    if (codeBlockMatch) {
+      const parsed = tryParse(codeBlockMatch[1].trim())
+      if (parsed) data = parsed
+    }
+
+    // Strategy 2: Walk backwards from last '}' to find the real outermost JSON object
+    if (!Object.keys(data).length) {
+      const extracted = extractOutermostJSON(rawText)
+      if (extracted) {
+        const parsed = tryParse(extracted)
+        if (parsed) data = parsed
       }
-    } catch {
-      // Strategy 3: try trimming leading/trailing text and parsing the largest JSON-like block
-      try {
-        const jsonLike = rawText.match(/\{[\s\S]*\}/)
-        if (jsonLike) {
-          data = JSON.parse(jsonLike[0])
-        } else {
-          data = { raw_text: rawText, parse_error: true }
-        }
-      } catch {
-        data = { raw_text: rawText, parse_error: true }
-      }
+    }
+
+    // Strategy 3: Bare JSON (entire rawText is JSON)
+    if (!Object.keys(data).length) {
+      const parsed = tryParse(rawText.trim())
+      if (parsed) data = parsed
+    }
+
+    if (!Object.keys(data).length) {
+      data = { raw_text: rawText, parse_error: true }
     }
 
     return NextResponse.json({ moduleId, data, rawText })
