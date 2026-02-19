@@ -62,7 +62,7 @@ export async function GET(req: Request) {
         if (hasFullRange) {
           headerRowIdx = i
           monthColIdx = colIdx
-          break
+          // don't break — keep scanning so we use the LAST matching header (B17:Q38 table)
         }
       }
     }
