@@ -13,6 +13,11 @@ async function computeHash(password: string): Promise<string> {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // In CHIEF mode, redirect root to /research
+  if (pathname === '/' && process.env.APP_MODE === 'chief') {
+    return NextResponse.redirect(new URL('/research', request.url))
+  }
+
   // Only protect /research routes
   if (!pathname.startsWith('/research')) {
     return NextResponse.next()
@@ -40,5 +45,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/research/:path*'],
+  matcher: ['/', '/research/:path*'],
 }
