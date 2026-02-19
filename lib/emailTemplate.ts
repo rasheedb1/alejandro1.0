@@ -116,9 +116,9 @@ export function generateEmailHTML({
                   </td>
                   <td width="3%"></td>
                   <td width="31%" style="background:${achColors.bg};border:1px solid ${achColors.border};border-radius:12px;padding:20px 12px;text-align:center;">
-                    <p style="margin:0 0 6px;color:${achColors.text};font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">MTD Achievement</p>
-                    <p style="margin:0;color:${achColors.text};font-size:42px;font-weight:800;line-height:1;">${mtdAchievement.toFixed(1)}%</p>
-                    <p style="margin:6px 0 0;color:${achColors.text};font-size:12px;opacity:0.8;">total: ${totalAchievement.toFixed(1)}%</p>
+                    <p style="margin:0 0 6px;color:${achColors.text};font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">Monthly Achievement</p>
+                    <p style="margin:0;color:${achColors.text};font-size:42px;font-weight:800;line-height:1;">${totalAchievement.toFixed(1)}%</p>
+                    <p style="margin:6px 0 0;color:${achColors.text};font-size:12px;opacity:0.8;">vs pace: ${mtdAchievement.toFixed(1)}%</p>
                   </td>
                 </tr>
               </table>
