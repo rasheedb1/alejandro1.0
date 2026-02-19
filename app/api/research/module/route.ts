@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getModulePrompt } from '@/lib/research/modules'
+import { getScrapeTargets, scrapeUrls, formatScrapedContext } from '@/lib/research/firecrawl'
 import type { ModuleId, ResearchInput } from '@/lib/research/types'
 
 export async function POST(req: Request) {
@@ -16,8 +17,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 })
     }
 
-    const prompt = getModulePrompt(moduleId, input)
+    // Step 1: Firecrawl — scrape relevant pages in parallel before calling Claude
+    let scrapedContext = ''
+    const firecrawlKey = process.env.FIRECRAWL_API_KEY
+    if (firecrawlKey) {
+      const targets = getScrapeTargets(moduleId, input)
+      if (targets.length > 0) {
+        const scrapedPages = await scrapeUrls(targets, firecrawlKey)
+        scrapedContext = formatScrapedContext(scrapedPages, input.companyName)
+      }
+    }
 
+    // Step 2: Build the module prompt, injecting scraped content if available
+    const basePrompt = getModulePrompt(moduleId, input)
+    const prompt = scrapedContext
+      ? `${scrapedContext}\n\n${basePrompt}`
+      : basePrompt
+
+    // Step 3: Call Claude with web search
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
