@@ -45,7 +45,7 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 4000,
+        max_tokens: 8000,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{ role: 'user', content: prompt }],
       }),
@@ -57,6 +57,11 @@ export async function POST(req: Request) {
     }
 
     const result = await response.json()
+
+    // Warn if response was cut off due to token limit
+    if (result.stop_reason === 'max_tokens') {
+      console.warn(`[research/module] ${moduleId} hit max_tokens — response may be truncated`)
+    }
 
     // Extract text content from the response
     let rawText = ''
