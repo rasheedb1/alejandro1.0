@@ -1,18 +1,41 @@
 export type Industry =
-  | 'Retail/Ecommerce'
-  | 'Travel/OTAs'
-  | 'Gaming/Gambling'
-  | 'SaaS'
-  | 'Ticketing'
-  | 'Food & Drinks'
+  | 'Video & Music Streaming'
+  | 'Super Apps & On-Demand Delivery'
+  | 'Social Media & Ad Platforms'
+  | 'Digital Banks / Neobanks'
+  | 'Remittance'
+  | 'Payment Service Providers'
+  | 'Fitness & Wellness'
+  | 'Telecom'
+  | 'E-Learning & EdTech'
+  | 'Event & Travel Ticketing'
+  | 'Insurance'
+  | 'Theaters & Cinemas'
+  | 'Payroll & HR Tech'
+  | 'Dating'
+  | 'iGaming & Sports Betting'
+  | 'Adult Entertainment'
+  | 'Crypto & Digital Assets'
+  | 'Investment Platforms'
+  | 'Mobility & Ridesharing'
+  | 'Airlines'
+  | 'Passenger Transport & Ticketing'
+  | 'Hospitality & Lodging'
+  | 'Travel & Online Agencies (OTAs)'
+  | 'Parking'
+  | 'Car Rental'
+  | 'Cosmetic & Personal Care Products'
+  | 'Food & Beverage'
+  | 'Luxury Goods & Fashion'
+  | 'Online Marketplaces'
+  | 'Retail'
+  | 'Network & Direct Sales'
   | 'Healthcare'
-  | 'Hospitality/Hotels'
-  | 'Cosmetics'
-  | 'Fintech'
-  | 'Marketplaces'
-  | 'Social Media'
-  | 'Streaming'
-  | 'Other'
+  | 'Web & Cloud Hosting'
+  | 'Cybersecurity and VPNs'
+  | 'AI'
+  | 'Digital Products & Subscriptions'
+  | 'SaaS'
 
 export type Region = 'US' | 'LATAM' | 'APAC' | 'EMEA' | 'Global'
 
@@ -31,6 +54,7 @@ export type ModuleStatus = 'pending' | 'loading' | 'done' | 'error'
 export interface ResearchInput {
   companyName: string
   domain: string
+  additionalDomains: string[]
   region: Region
   industry: Industry
   sdrName: string
@@ -64,20 +88,43 @@ export interface ResearchReport {
 }
 
 export const INDUSTRIES: Industry[] = [
-  'Retail/Ecommerce',
-  'Travel/OTAs',
-  'Gaming/Gambling',
-  'SaaS',
-  'Ticketing',
-  'Food & Drinks',
+  'Video & Music Streaming',
+  'Super Apps & On-Demand Delivery',
+  'Social Media & Ad Platforms',
+  'Digital Banks / Neobanks',
+  'Remittance',
+  'Payment Service Providers',
+  'Fitness & Wellness',
+  'Telecom',
+  'E-Learning & EdTech',
+  'Event & Travel Ticketing',
+  'Insurance',
+  'Theaters & Cinemas',
+  'Payroll & HR Tech',
+  'Dating',
+  'iGaming & Sports Betting',
+  'Adult Entertainment',
+  'Crypto & Digital Assets',
+  'Investment Platforms',
+  'Mobility & Ridesharing',
+  'Airlines',
+  'Passenger Transport & Ticketing',
+  'Hospitality & Lodging',
+  'Travel & Online Agencies (OTAs)',
+  'Parking',
+  'Car Rental',
+  'Cosmetic & Personal Care Products',
+  'Food & Beverage',
+  'Luxury Goods & Fashion',
+  'Online Marketplaces',
+  'Retail',
+  'Network & Direct Sales',
   'Healthcare',
-  'Hospitality/Hotels',
-  'Cosmetics',
-  'Fintech',
-  'Marketplaces',
-  'Social Media',
-  'Streaming',
-  'Other',
+  'Web & Cloud Hosting',
+  'Cybersecurity and VPNs',
+  'AI',
+  'Digital Products & Subscriptions',
+  'SaaS',
 ]
 
 export const REGIONS: Region[] = ['US', 'LATAM', 'APAC', 'EMEA', 'Global']

@@ -17,12 +17,17 @@ IMPORTANT: Always respond with ONLY a valid JSON object. No markdown, no explana
 `
 
 export function getModulePrompt(moduleId: ModuleId, input: ResearchInput): string {
-  const { companyName, domain, industry, region } = input
+  const { companyName, domain, industry, region, additionalDomains } = input
+
+  const allDomains = [domain, ...(additionalDomains ?? [])].filter(Boolean)
+  const domainsNote = allDomains.length > 1
+    ? `The company operates across multiple domains: ${allDomains.join(', ')}. When searching, use all of these domains to find market-specific information.`
+    : `Website: ${domain}`
 
   const prompts: Record<ModuleId, string> = {
     company_overview: `${YUNO_CONTEXT}
 
-Research the company "${companyName}" (website: ${domain}) in the ${industry} industry.
+Research the company "${companyName}" (${domainsNote}) in the ${industry} industry.
 
 Search for current, accurate information about this company and return a JSON object with this exact structure:
 {
@@ -43,7 +48,7 @@ Search for current, accurate information about this company and return a JSON ob
 
     top_markets: `${YUNO_CONTEXT}
 
-Research the top markets for "${companyName}" (${domain}), especially in the ${region} region.
+Research the top markets for "${companyName}" (${domainsNote}), especially in the ${region} region.
 
 Search for web traffic data, revenue distribution, job postings by country, and market expansion news. Return a JSON object:
 {
@@ -61,7 +66,7 @@ List at least 5 global markets and focus especially on ${region} markets.`,
 
     local_entity: `${YUNO_CONTEXT}
 
-For "${companyName}" (${domain}), research whether they have legal entities or subsidiaries in each of their key markets.
+For "${companyName}" (${domainsNote}), research whether they have legal entities or subsidiaries in each of their key markets.
 
 A local entity means they likely use local acquiring (lower fees, higher approval rates). No local entity = likely cross-border processing (higher fees, lower approval rates) — this is a key selling point for Yuno.
 
@@ -83,7 +88,7 @@ Search for "{companyName} subsidiary {country}", "{companyName} office {country}
 
     payment_methods: `${YUNO_CONTEXT}
 
-Research the payment methods available at "${companyName}" (${domain}) checkout for each of their key markets.
+Research the payment methods available at "${companyName}" (${domainsNote}) checkout for each of their key markets.
 
 Search for:
 - "${companyName} payment methods {country}"
@@ -121,7 +126,7 @@ Return JSON:
 
     psp_detection: `${YUNO_CONTEXT}
 
-Research what PSP(s) and payment providers "${companyName}" (${domain}) currently uses.
+Research what PSP(s) and payment providers "${companyName}" (${domainsNote}) currently uses.
 
 Search for:
 - "${companyName} payment provider"
@@ -146,7 +151,7 @@ Return JSON:
 
     complaints: `${YUNO_CONTEXT}
 
-Search for customer complaints about payment issues at "${companyName}" (${domain}).
+Search for customer complaints about payment issues at "${companyName}" (${domainsNote}).
 
 Search for:
 - "${companyName} payment not working" site:reddit.com
@@ -173,7 +178,7 @@ Return JSON:
 
     expansion: `${YUNO_CONTEXT}
 
-Research "${companyName}" (${domain}) expansion plans and new market entries.
+Research "${companyName}" (${domainsNote}) expansion plans and new market entries.
 
 Search for:
 - Recent press releases about entering new countries/markets
@@ -198,7 +203,7 @@ Return JSON:
 
     news: `${YUNO_CONTEXT}
 
-Find the most recent and relevant news about "${companyName}" (${domain}) related to payments, finance, and growth.
+Find the most recent and relevant news about "${companyName}" (${domainsNote}) related to payments, finance, and growth.
 
 Search for:
 - Recent funding rounds or IPO news
