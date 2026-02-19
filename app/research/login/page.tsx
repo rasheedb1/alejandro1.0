@@ -24,7 +24,9 @@ export default function LoginPage() {
     if (data.success) {
       router.push('/research')
     } else {
-      setError('Incorrect password. Try again.')
+      setError(data.error === 'RESEARCH_PASSWORD not configured'
+        ? 'Password not configured — contact your admin.'
+        : 'Incorrect password. Try again.')
       setLoading(false)
     }
   }
@@ -34,10 +36,10 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
           <div className="w-14 h-14 rounded-2xl bg-purple-600 flex items-center justify-center shadow-lg shadow-purple-200 mb-4">
-            <span className="text-white font-black text-2xl">Y</span>
+            <span className="text-white font-black text-xl tracking-tight">CH</span>
           </div>
-          <h1 className="text-2xl font-black text-gray-900">Account Research</h1>
-          <p className="text-sm text-gray-500 mt-1">Yuno SDR Intelligence Platform</p>
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight">CHIEF</h1>
+          <p className="text-sm text-gray-500 mt-1">Account Intelligence · Yuno SDR</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
@@ -63,7 +65,7 @@ export default function LoginPage() {
             disabled={loading || !password}
             className="w-full py-3 rounded-xl bg-purple-600 text-white font-semibold text-sm hover:bg-purple-700 transition-colors disabled:opacity-40 shadow-md shadow-purple-200"
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? 'Signing in...' : 'Enter CHIEF'}
           </button>
         </form>
       </div>

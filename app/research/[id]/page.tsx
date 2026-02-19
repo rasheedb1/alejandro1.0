@@ -65,11 +65,11 @@ export default function SavedReportPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center shadow-md shadow-purple-200">
-              <span className="text-white font-black text-lg">Y</span>
+              <span className="text-white font-black text-xs tracking-tight">CH</span>
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">{saved.company_name}</h1>
-              <p className="text-sm text-gray-400">Saved Report · Yuno Account Research</p>
+              <p className="text-sm text-gray-400">CHIEF · Saved Report</p>
             </div>
           </div>
           <div className="flex items-center gap-3">

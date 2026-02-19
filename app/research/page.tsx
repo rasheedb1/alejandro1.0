@@ -48,11 +48,11 @@ export default function ResearchDashboard() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center shadow-md shadow-purple-200">
-              <span className="text-white font-black text-lg">Y</span>
+              <span className="text-white font-black text-xs tracking-tight">CH</span>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Account Research</h1>
-              <p className="text-sm text-gray-400">Yuno SDR Intelligence Platform</p>
+              <h1 className="text-xl font-black text-gray-900 tracking-tight">CHIEF</h1>
+              <p className="text-sm text-gray-400">Account Intelligence · Yuno SDR</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
