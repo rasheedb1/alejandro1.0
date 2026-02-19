@@ -145,7 +145,7 @@ function renderObject(obj: Record<string, unknown>, depth = 0): React.ReactNode 
           </div>
         )
       })}
-      {obj.key_insight && !skip.includes('key_insight') && (
+      {!!obj.key_insight && (
         <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
           <p className="text-xs font-bold text-purple-600 uppercase tracking-wide mb-1">Key Insight</p>
           <p className="text-sm text-purple-900 font-medium">{String(obj.key_insight)}</p>
