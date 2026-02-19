@@ -29,40 +29,69 @@ export function getModulePrompt(moduleId: ModuleId, input: ResearchInput): strin
 
 Research the company "${companyName}" (${domainsNote}) in the ${industry} industry.
 
-Search for current, accurate information about this company and return a JSON object with this exact structure:
+Search for:
+- Official company website, LinkedIn, Crunchbase, PitchBook
+- Recent press releases, TechCrunch, Bloomberg, Reuters, local business media
+- CEO/founder public statements about company scale and growth
+- App store downloads, active user counts, GMV/revenue figures if public
+
+Return a JSON object with this exact structure:
 {
-  "what_they_do": "1-2 sentence description of the company's core business",
+  "what_they_do": "2-3 sentence description of the company's core business, business model, and why customers use it",
   "hq_location": "City, Country",
-  "company_size": "Approximate employee count or range",
+  "company_size": "Approximate employee count or range (source it if possible, e.g. 'LinkedIn: 5,000-10,000')",
   "founded_year": "Year founded or null",
-  "business_model": "B2C / B2B / Marketplace / etc.",
+  "business_model": "B2C / B2B / Marketplace / Super App / etc.",
   "key_products": ["product1", "product2"],
+  "scale_metrics": "Any available scale data: active users, GMV, downloads, transactions per day, cities, countries",
   "funding": {
-    "status": "Private / Public / Bootstrapped",
+    "status": "Private / Public / Bootstrapped / Unicorn",
     "latest_round": "Series X - $XXM - MonthYear or null",
     "total_raised": "$XXM or null",
     "investors": ["investor1", "investor2"]
   },
-  "recent_highlights": ["Recent growth announcement or financial result 1", "Recent announcement 2"]
+  "recent_highlights": [
+    "Specific recent announcement with date and dollar amount or metric (e.g. 'Sep 2025 — Amazon invested $25M convertible note, warrants for up to 12% ownership')",
+    "Another specific announcement with date"
+  ]
 }`,
 
     top_markets: `${YUNO_CONTEXT}
 
 Research the top markets for "${companyName}" (${domainsNote}), especially in the ${region} region.
 
-Search for web traffic data, revenue distribution, job postings by country, and market expansion news. Return a JSON object:
+Search for:
+- SimilarWeb or Semrush traffic data by country
+- "${companyName} revenue by country" OR "${companyName} largest market"
+- "${companyName} market share {country}" — find actual % if possible
+- Job postings by country on LinkedIn (signals where they're investing)
+- Press releases about entering or exiting markets
+
+For each market, try to find SPECIFIC evidence: traffic %, revenue %, user count, market share %, or a named source (press release, earnings call, etc.). Vague guesses are less useful than specific data points.
+
+Return a JSON object:
 {
   "global_top_markets": [
-    {"country": "Country name", "relevance": "High/Medium/Low", "evidence": "Why this market matters (traffic %, revenue mention, etc.)"}
+    {
+      "country": "Country name",
+      "relevance": "High/Medium/Low",
+      "evidence": "Specific evidence: e.g. '33M app downloads (Dec 2022), largest market by MAU as of Jan 2025' or 'Overtook Colombia in revenue by 2023'"
+    }
   ],
   "target_region_markets": [
-    {"country": "Country name", "relevance": "High/Medium/Low", "evidence": "Why this market matters"}
+    {
+      "country": "Country name",
+      "relevance": "High/Medium/Low",
+      "evidence": "Specific evidence with source"
+    }
   ],
-  "expanding_to": ["Country or region they seem to be entering"],
-  "market_notes": "Any additional context about their market strategy"
+  "expanding_to": [
+    "Country or region — source/evidence of expansion (e.g. 'CEO confirmed Central America expansion at Reuters summit, 2025')"
+  ],
+  "market_notes": "Summary of market strategy including any confirmed market share numbers, competitive dynamics, or geographic focus"
 }
 
-List at least 5 global markets and focus especially on ${region} markets.`,
+List at least 5-7 global markets and focus especially on ${region} markets. Include competitor market share comparisons where available.`,
 
     local_entity: `${YUNO_CONTEXT}
 
@@ -70,20 +99,37 @@ For "${companyName}" (${domainsNote}), research whether they have legal entities
 
 A local entity means they likely use local acquiring (lower fees, higher approval rates). No local entity = likely cross-border processing (higher fees, lower approval rates) — this is a key selling point for Yuno.
 
-Search for "{companyName} subsidiary {country}", "{companyName} office {country}", and legal entity databases. Return JSON:
+For each market, search:
+- "${companyName} {country} legal entity" or "${companyName} {country} subsidiary"
+- "${companyName} {country} office" or "${companyName} registered company {country}"
+- Their legal terms/T&C pages per country (e.g. rappi.com/legal, terms.{domain}/country) — these often reveal registered entity names and tax IDs
+- Local business registries: CNPJ (Brazil), RFC (Mexico), RUT (Chile), CUIT (Argentina), NIT (Colombia), RUC (Peru/Ecuador)
+- Dun & Bradstreet, EMIS, Crunchbase for subsidiary listings
+
+Return JSON — be specific about entity names and registration numbers when found:
 {
   "entities": [
     {
       "country": "Country name",
       "has_local_entity": true,
-      "entity_name": "Legal entity name if found, null otherwise",
-      "processing_type": "Local acquiring" or "Cross-border (opportunity)",
-      "fee_impact": "Likely paying higher cross-border fees" or "Already processing locally",
-      "evidence": "How you determined this"
+      "entity_name": "Legal entity name e.g. 'Rappi Brasil Intermediação de Negócios Ltda.' or null if not found",
+      "registration_id": "e.g. CNPJ 26.900.161/0001-25 or RFC TRA150604TW1 or null",
+      "processing_type": "Local acquiring",
+      "fee_impact": "Already processing locally — local entity confirmed",
+      "evidence": "Specific source: e.g. 'Confirmed via Rappi Brazilian legal terms page (CNPJ 26.900.161/0001-25), São Paulo office confirmed'"
+    },
+    {
+      "country": "Country name",
+      "has_local_entity": false,
+      "entity_name": null,
+      "registration_id": null,
+      "processing_type": "Cross-border (opportunity)",
+      "fee_impact": "Likely paying higher cross-border fees — no local entity found",
+      "evidence": "What you searched and why no entity was found"
     }
   ],
-  "cross_border_opportunity": "Summary of how many markets they're likely overpaying in and the Yuno opportunity",
-  "key_insight": "The single most important finding about their entity structure"
+  "cross_border_opportunity": "How many of their X key markets have no confirmed local entity, and what the Yuno opportunity is for those markets",
+  "key_insight": "The single most important finding about their entity structure for a Yuno pitch"
 }`,
 
     payment_methods: `${YUNO_CONTEXT}
@@ -91,89 +137,134 @@ Search for "{companyName} subsidiary {country}", "{companyName} office {country}
 Research the payment methods available at "${companyName}" (${domainsNote}) checkout for each of their key markets.
 
 Search for:
-- "${companyName} payment methods {country}"
-- "${companyName} how to pay {country}"
-- "${companyName} checkout {country}"
-- Their help center or FAQ pages listing payment methods
+- "${companyName} payment methods" or "${companyName} how to pay" (include country name variants)
+- "${companyName} {country} checkout" — look for screenshots, help center pages, FAQs
+- "${companyName} accepts {specific APM}" — e.g. "${companyName} accepts Pix", "${companyName} OXXO"
+- The company's own help center, FAQ, or support pages listing accepted payment methods
+- App store screenshots or reviews mentioning payment method issues
 
-Critical APMs by market that they should have:
-- Brazil: Pix, Boleto
-- Colombia: PSE, Nequi
-- Mexico: OXXO, SPEI
-- India: UPI, Paytm
-- Argentina: Mercado Pago, Rapipago
-- Chile: Webpay, Khipu
-- Peru: PagoEfectivo
-- Indonesia: GoPay, OVO, Dana
-- US: Apple Pay, Google Pay, Afterpay/BNPL
-- Europe: iDEAL (NL), Bancontact (BE), MB Way (PT), Bizum (ES), Klarna
+CRITICAL APMs by market — each one below has a market context you should reference:
+- Brazil: Pix (instant transfer, dominant — 80%+ of digital transactions), Boleto Bancário (~25% market share, unbanked users)
+- Colombia: PSE (main bank transfer rail), Nequi (largest digital wallet by users), Daviplata, Efecty (major cash network)
+- Mexico: OXXO Pay (50% of all cash-based digital transactions, 20,000+ locations), SPEI (instant bank transfer), CoDi
+- Argentina: Mercado Pago (dominant digital wallet), Rapipago (cash payment network), MODO (interbank digital wallet)
+- Chile: Webpay/Transbank (74% market share of online bank transfers), Khipu (16% market share)
+- Peru: PagoEfectivo (~19% of online transactions, ~$4.75B TPV), Yape (54% of in-person digital transactions), PLIN (34%)
+- Uruguay: Redpagos, Abitab (major cash networks), OCA (local card network)
+- Ecuador: De Una (central bank instant payment, 2023), Payphone, SafetyPay
+- Costa Rica: SINPE Móvil (dominant instant payment, operated by central bank)
+- India: UPI (dominant, 80%+ of digital transactions), Paytm wallet
+- Indonesia: GoPay, OVO, Dana (top 3 digital wallets)
+- US: Apple Pay, Google Pay, Buy Now Pay Later (Afterpay/Klarna)
+- Europe: iDEAL (Netherlands), Bancontact (Belgium), MB Way (Portugal), Bizum (Spain), Klarna (Nordics)
+- Southeast Asia: GCash (Philippines), PromptPay (Thailand), PayNow (Singapore), Touch 'n Go (Malaysia)
 
-Return JSON:
+Return JSON with specific evidence for each market — "not confirmed" is different from "confirmed missing":
 {
   "markets": [
     {
       "country": "Country",
-      "available_methods": ["Visa", "Mastercard", "Pix", etc.],
-      "missing_critical_apm": ["APM they're missing", "Another APM"],
+      "available_methods": ["Visa", "Mastercard", "Pix"],
+      "how_confirmed": "Source of confirmation (e.g. 'Official help center page', 'App screenshot in review', 'Press release')",
+      "missing_critical_apm": [
+        "OXXO Pay (50% of cash-based digital transactions in Mexico — explicitly stated on their own support page as NOT accepted)"
+      ],
       "opportunity_level": "High/Medium/Low",
-      "notes": "Any context"
+      "notes": "Specific context e.g. 'Their support page explicitly says OXXO is not supported. Only accepts 7-Eleven and Farmapronto for cash.'"
     }
   ],
-  "biggest_gap": "The single most impactful missing payment method and market",
+  "biggest_gap": "The single most impactful missing APM — name the method, country, market share %, and the specific evidence of the gap",
   "total_missing_apms": 0,
-  "key_insight": "Summary of payment method coverage gaps"
+  "key_insight": "Narrative of payment coverage gaps across markets — which markets have the most critical gaps and why it matters for conversion"
 }`,
 
     psp_detection: `${YUNO_CONTEXT}
 
-Research what PSP(s) and payment providers "${companyName}" (${domainsNote}) currently uses.
+Research what PSPs (Payment Service Providers) and payment providers "${companyName}" (${domainsNote}) currently uses across all their markets.
 
 Search for:
-- "${companyName} payment provider"
-- "${companyName} PSP"
-- "${companyName} Stripe", "${companyName} Adyen", "${companyName} dLocal", "${companyName} Checkout.com", "${companyName} PayU", "${companyName} Braintree", "${companyName} Worldpay", "${companyName} Fiserv", "${companyName} Nuvei", "${companyName} Rapyd"
-- "${companyName} payment orchestration", "${companyName} Spreedly", "${companyName} Primer"
-- Case studies, press releases, job postings mentioning payment tech stack
+- "${companyName} payment provider" or "${companyName} PSP"
+- "${companyName} Stripe", "${companyName} Adyen", "${companyName} Checkout.com", "${companyName} Braintree"
+- "${companyName} dLocal", "${companyName} Nuvei", "${companyName} PayU", "${companyName} Kushki", "${companyName} Conekta"
+- "${companyName} Worldpay", "${companyName} Fiserv", "${companyName} Elavon", "${companyName} Rapyd", "${companyName} AstroPay"
+- "${companyName} SafetyPay", "${companyName} PayRetailers", "${companyName} Mercado Pago"
+
+SEARCH FOR ORCHESTRATORS EXPLICITLY:
+- "${companyName} Yuno" or "${companyName} y.uno" — check y.uno/success-cases for any case study
+- "${companyName} Spreedly" — Spreedly publishes case studies at spreedly.com/customers/
+- "${companyName} Primer" — check primer.io for case studies
+- "${companyName} payment orchestration"
+- "${companyName} Payrix", "${companyName} Paymentspring"
+
+Also search:
+- Case studies and press releases on PSP websites mentioning ${companyName}
+- Job postings for payment/fintech roles (reveal their tech stack)
+- "${companyName} PSP" in tech blogs, Money20/20, Fintech Futures, Pymnts.com
+- Bank statement transaction descriptors that reveal which processor was used
 
 Return JSON:
 {
   "detected_psps": [
-    {"name": "PSP name", "confidence": "High/Medium/Low", "evidence": "Where you found this"}
+    {
+      "name": "PSP or provider name",
+      "type": "PSP / APM / Orchestrator / Banking Partner / Card Network",
+      "confidence": "High/Medium/Low",
+      "evidence": "Exact source — e.g. 'Official dLocal press release Feb 2022 confirming expanded partnership across 6 markets' or 'Adyen listed Rappi as customer in H1 2021 earnings press release'"
+    }
   ],
   "psp_count": 0,
   "has_orchestrator": false,
-  "orchestrator_name": "Name if they have one, null otherwise",
-  "redundancy_risk": "High (single PSP) / Medium / Low",
-  "processing_scope": "Global / Regional / Local",
-  "key_insight": "The most important finding about their payment stack",
-  "yuno_angle": "How Yuno can specifically help based on their current setup"
+  "orchestrator_name": "Name and details if they have one, null otherwise",
+  "yuno_existing_relationship": false,
+  "yuno_relationship_details": "If Yuno is detected: describe the relationship, when it started, what was achieved. If not detected: null",
+  "redundancy_risk": "High (single PSP, 100% downtime risk) / Medium / Low",
+  "processing_scope": "Global / Regional (specify) / Local only",
+  "key_insight": "The most important finding about their payment stack — single PSP risk? existing orchestrator? fragmented multi-PSP with no unification?",
+  "yuno_angle": "Specific pitch based on their current setup — if they already use Yuno, focus on expansion; if they use Spreedly/Primer, focus on switching; if single PSP, focus on redundancy"
 }`,
 
     complaints: `${YUNO_CONTEXT}
 
 Search for customer complaints about payment issues at "${companyName}" (${domainsNote}).
 
-Search for:
-- "${companyName} payment not working" site:reddit.com
+Search across ALL of these sources:
+- Reddit: "${companyName} payment not working" site:reddit.com
+- Reddit: "${companyName} card declined" site:reddit.com
+- Trustpilot: "${companyName}" site:trustpilot.com (look for payment-related reviews)
+- PissedConsumer: "${companyName}" site:pissedconsumer.com
+- Google Play / App Store reviews mentioning payment issues (search "${companyName} payment error google play" or look for review aggregators)
+- Twitter/X: "${companyName} payment failed" OR "${companyName} card declined"
+- JustAnswer, Quora, or support forums
 - "${companyName} card declined"
 - "${companyName} checkout problems"
-- "${companyName} can't pay"
-- "${companyName} payment failed"
-- "${companyName} fraud"
-- Twitter/X mentions of payment issues
+- "${companyName} payment fraud"
+- "${companyName} unauthorized charge"
+- "${companyName} chargeback"
+- News articles about payment outages or customer refund issues
+
+Look for SPECIFIC, quotable complaint examples with details about:
+- What payment method failed
+- Which market / country it happened in
+- What the customer said exactly (quote if possible)
+- How Rappi/the company responded (or didn't)
 
 Return JSON:
 {
   "complaints_found": true,
   "severity": "High/Medium/Low/None",
   "complaint_themes": [
-    {"theme": "Theme name (e.g. Card declines)", "frequency": "Common/Occasional/Rare", "example": "Example complaint or mention"}
+    {
+      "theme": "Theme name (e.g. 'Card declines at checkout')",
+      "frequency": "Common/Occasional/Rare",
+      "example": "Specific real complaint with detail — quote or paraphrase, source, and country/market if known"
+    }
   ],
   "affected_markets": ["Countries where complaints are most common"],
   "fraud_mentions": false,
   "checkout_ux_issues": false,
-  "key_insight": "Summary of payment pain points and how Yuno could help",
-  "outreach_angle": "Specific complaint detail that can be used in outreach"
+  "support_quality": "Description of their customer support quality based on review data — response rate, resolution rate if known",
+  "key_insight": "Summary of payment pain points and how Yuno's smart routing / failover could directly address the root cause",
+  "outreach_angle": "The single most specific, quotable complaint or data point that could open a conversation — e.g. a founder quote, a review stat, a specific outage"
 }`,
 
     expansion: `${YUNO_CONTEXT}
@@ -181,53 +272,78 @@ Return JSON:
 Research "${companyName}" (${domainsNote}) expansion plans and new market entries.
 
 Search for:
-- Recent press releases about entering new countries/markets
-- Job postings in new countries (especially payment-related roles)
-- New product launches requiring payment infrastructure
-- M&A activity or partnerships suggesting geographic expansion
-- Investor presentations mentioning new markets
+- "${companyName} new market" OR "${companyName} expansion {year}" (use current year 2025/2026)
+- "${companyName} entering {country}" or CEO/founder interviews about new markets
+- LinkedIn job postings in NEW countries not in their current footprint — especially fintech/payment roles
+- "${companyName} {country} launch" press releases
+- M&A activity: acquisitions, strategic investments, or partnerships that imply geographic expansion
+- Investor presentations or earnings calls mentioning new markets
+- "${companyName} IPO" — if IPO-bound, payment efficiency before listing is critical
+
+For payment hires specifically search:
+- LinkedIn for "${companyName} payments manager", "${companyName} payment operations", "${companyName} fraud analyst"
+- What level of hire (analyst vs. VP vs. C-suite) — C-suite signals strategic shift
+- What the hire signals: e.g. CFO hire = IPO prep, Head of Payments = payment infrastructure buildout
 
 Return JSON:
 {
   "expanding_to": [
-    {"market": "Country or region", "evidence": "Job posting / press release / announcement", "timeline": "Announced timeline or 'Unknown'"}
+    {
+      "market": "Country or region",
+      "evidence": "Specific evidence — CEO quote from article, press release, job posting location",
+      "timeline": "Confirmed date / 'H1 2026' / 'Unknown'"
+    }
   ],
   "payment_hires": [
-    {"role": "Job title", "location": "Country", "signals": "What this role signals"}
+    {
+      "role": "Exact job title",
+      "level": "C-suite / Director / Manager / Analyst",
+      "location": "Country",
+      "signals": "What this hire signals about their payment strategy — e.g. 'Director-level fraud hire in Mexico City signals RappiPay scaling rapidly'"
+    }
   ],
-  "recent_launches": ["New product or market launched recently"],
-  "ma_activity": "Any M&A or partnerships with payment implications",
+  "recent_launches": [
+    "Specific product/market launch with date and detail — e.g. 'Nov 2025: Amazon Now launched in 10 Mexican cities with Rappi, 5,000+ products in under 15 min'"
+  ],
+  "ma_activity": "Any M&A or partnerships with payment implications — name the deal, amount, date, and what it means for payment infrastructure",
   "expansion_urgency": "High/Medium/Low",
-  "key_insight": "How their expansion creates payment infrastructure needs that Yuno can solve"
+  "key_insight": "How their specific expansion plans create payment infrastructure needs that only an orchestration layer like Yuno can solve at scale"
 }`,
 
     news: `${YUNO_CONTEXT}
 
 Find the most recent and relevant news about "${companyName}" (${domainsNote}) related to payments, finance, and growth.
 
-Search for:
-- Recent funding rounds or IPO news
-- Payment provider changes or integrations
-- Payment outages or incidents
-- Revenue or volume growth announcements
-- Partnerships with payment companies
-- Quarterly earnings mentioning payment costs
+Search for news from the last 18 months specifically:
+- Recent funding rounds, debt financing, or IPO news
+- Payment provider changes, integrations, or PSP partnerships
+- Payment outages or incidents that hit the press
+- Revenue, GMV, or transaction volume growth announcements
+- Partnerships with payment companies (press releases on both sides)
+- Quarterly earnings or investor calls mentioning payment costs or approval rates
+- C-suite hires that signal payment or fintech strategy changes
+- "${companyName} fintech", "${companyName} payment news" in Pymnts, Fintech Futures, The Paypers, Reuters, Bloomberg
+
+For each news item, include the SPECIFIC DATE (month + year) and a named source (outlet name or URL). Avoid vague dates like "recently."
 
 Return JSON:
 {
   "news_items": [
     {
-      "headline": "News headline",
-      "date": "Month Year",
-      "category": "Funding / Payment Integration / Outage / Growth / Partnership / Earnings",
-      "summary": "1-2 sentence summary",
-      "relevance_to_yuno": "Why this matters for a Yuno conversation"
+      "headline": "Exact or paraphrased headline",
+      "date": "Month Year (e.g. 'September 2025')",
+      "source": "Publication name (e.g. Reuters, TechCrunch, Pymnts)",
+      "category": "Funding / Debt Financing / Payment Integration / PSP Partnership / Outage / Growth / IPO / Executive Hire / M&A",
+      "summary": "2-3 sentence summary of what happened and why it matters",
+      "relevance_to_yuno": "Specific reason this creates a Yuno conversation opportunity — e.g. 'New CFO hired to prep IPO — will scrutinize payment costs and approval rates'"
     }
   ],
-  "financial_health": "Strong / Stable / Uncertain",
-  "recent_payment_events": "Summary of any payment-specific news",
-  "trigger_events": ["Specific event that makes now a good time to reach out"],
-  "key_insight": "The most compelling recent development for Yuno outreach"
+  "financial_health": "Strong / Stable / Uncertain — brief rationale",
+  "recent_payment_events": "Narrative summary of payment-specific news in the last 12-18 months",
+  "trigger_events": [
+    "Specific event that makes NOW a good time to reach out — be concrete, e.g. 'CFO Tiago Azevedo hired April 2024 to lead IPO prep — payment cost optimization is top of mind'"
+  ],
+  "key_insight": "The single most compelling recent development for Yuno outreach — the hook that would make a VP of Payments take the call"
 }`
   }
 
@@ -237,7 +353,7 @@ Return JSON:
 export function getSynthesisPrompt(input: ResearchInput, modulesJson: string): string {
   return `${YUNO_CONTEXT}
 
-Based on the following research findings about "${input.companyName}" (${input.domain}), provide a synthesis and opportunity assessment.
+Based on the following research findings about "${input.companyName}" (${input.domain}), provide a synthesis and opportunity assessment for the Yuno SDR team.
 
 RESEARCH FINDINGS:
 ${modulesJson}
@@ -246,25 +362,32 @@ Return a JSON object with this exact structure:
 {
   "opportunity_score": 7,
   "score_breakdown": [
-    {"name": "Multi-market presence", "present": true, "impact": 1.5, "description": "Operates in 10+ markets across LATAM and APAC"},
-    {"name": "Single PSP / no redundancy", "present": true, "impact": 1.5, "description": "Only uses Stripe globally — 100% downtime risk"},
-    {"name": "Missing APMs in key markets", "present": true, "impact": 1.5, "description": "No Pix in Brazil, no OXXO in Mexico"},
-    {"name": "Cross-border processing", "present": true, "impact": 1.0, "description": "Processing cross-border in 3 key markets without local entities"},
-    {"name": "Customer payment complaints", "present": false, "impact": 0, "description": "No significant payment complaints found"},
-    {"name": "Active expansion plans", "present": true, "impact": 1.0, "description": "Expanding to India and Southeast Asia in 2025"},
-    {"name": "No payment orchestrator", "present": true, "impact": 1.0, "description": "No orchestration layer detected"},
-    {"name": "Strong financial health", "present": true, "impact": 0.5, "description": "Series C funded, growing 40% YoY"}
+    {"name": "Multi-market presence", "present": true, "impact": 1.5, "description": "Be specific: e.g. 'Operates in 9 LATAM countries across 400+ cities with 35M+ active users'"},
+    {"name": "Single PSP / high redundancy risk", "present": true, "impact": 1.5, "description": "Be specific: e.g. 'Only confirmed PSP is Stripe globally — any outage = 100% downtime with no failover'"},
+    {"name": "Missing APMs in key markets", "present": true, "impact": 1.5, "description": "Be specific: e.g. '16 critical APM gaps — no OXXO Pay in Mexico (50% of cash transactions), no Webpay in Chile (74% bank transfer share)'"},
+    {"name": "Cross-border processing in key markets", "present": true, "impact": 1.0, "description": "Be specific: e.g. 'No confirmed local entity in Uruguay and Ecuador — likely processing cross-border from Colombia hub'"},
+    {"name": "Customer payment complaints", "present": true, "impact": 1.0, "description": "Be specific: e.g. 'High severity — card declines, ghost charges, and checkout abandonment documented across Trustpilot, Reddit, and Google Play'"},
+    {"name": "Active expansion plans", "present": true, "impact": 1.0, "description": "Be specific: e.g. 'CEO confirmed Central America expansion 2025-2026; $100M credit line earmarked for Mexico growth'"},
+    {"name": "No payment orchestrator", "present": true, "impact": 1.0, "description": "Be specific: e.g. 'No orchestration layer detected — manually managing 3 PSPs per market with no unified routing or failover'"},
+    {"name": "Strong financial health / IPO track", "present": true, "impact": 0.5, "description": "Be specific: e.g. 'Series C funded ($180M), profitable 2 quarters, IPO exploratory per CEO interview Q3 2025'"}
   ],
-  "executive_summary": "3-4 sentence summary of why this is or isn't a good Yuno prospect, highlighting top 2-3 findings",
+  "executive_summary": "3-4 sentence summary that immediately establishes: (1) what makes this prospect unique or complex as a payment environment, (2) the single most important Yuno opportunity, (3) the urgency or trigger event. Do NOT use generic language. Reference specific findings from the research — numbers, company names, events.",
   "talking_points": [
-    "Specific, personalized talking point referencing a real finding",
-    "Another talking point with a specific data point or observation",
-    "A third talking point referencing their expansion or growth",
-    "A fourth talking point about payment risk or missed revenue",
-    "A fifth talking point tying it all together with a clear Yuno value prop"
+    "TALKING POINT INSTRUCTIONS — Replace this with 5 real talking points. Each talking point must: (1) Open with a SPECIFIC named finding from the research — a quote, a statistic, an event, an executive hire, a product launch, or a competitor data point. (2) Connect that finding to a specific business impact (lost revenue, conversion drag, competitive pressure, investor scrutiny). (3) Close with the specific Yuno value prop that solves this exact problem. (4) Be 3-5 sentences long, not a one-liner. (5) Never use generic language like 'you might benefit from' — be direct and specific.",
+    "Example format: '[Company] explicitly confirmed on their [country] support page that [specific APM] is NOT accepted — a method that accounts for [X]% of [country]'s [digital/cash] transactions. In a market where [Company] competes directly with [Competitor] ([market share]% vs [market share]% MAU), leaving [specific APM] uncovered translates directly into checkout abandonment for [millions of / the X% of] users who prefer or depend on [cash/instant transfer/wallet]. Yuno can close this gap through a single API call — no new engineering sprint required from [Company]'s dev team.'",
+    "Second talking point — focus on PSP risk / redundancy if relevant, or biggest APM gap",
+    "Third talking point — focus on expansion: specific new market entry and the payment infrastructure need it creates",
+    "Fourth talking point — focus on financial pressure: IPO prep, CFO hire, investor scrutiny on approval rates or processing costs",
+    "Fifth talking point — tie it together: the compounding nature of their payment complexity and why Yuno's orchestration layer is the right-size solution"
   ]
 }
 
-The opportunity_score should be between 1-10 based on the sum of impact scores in score_breakdown, normalized to 10.
-Each talking point must be specific, referencing actual findings — not generic. Start each with a specific observation.`
+CRITICAL RULES for talking points:
+- Every talking point must reference AT LEAST ONE specific data point from the research (%, $, named executive, named APM, named PSP, named country, specific date)
+- If the research found an EXISTING Yuno relationship, talking points should focus on EXPANSION and DEEPENING the relationship, not acquisition
+- If no orchestrator was detected, the talking points should emphasize operational risk
+- If an IPO or fundraise was found, at least one talking point must reference investor scrutiny on payment metrics
+- Each talking point should be usable as a verbatim opening line in a cold outreach email or call
+
+The opportunity_score should be between 1-10. Sum the "impact" values of criteria where "present": true, then normalize to a 10-point scale based on the maximum possible score (7.5 = 10/10).`
 }
