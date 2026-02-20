@@ -13,7 +13,12 @@ Key value propositions of Yuno:
 
 The goal of this research is to identify pain points and opportunities for Yuno to help this prospect.
 
-IMPORTANT: Always respond with ONLY a valid JSON object. No markdown, no explanation outside the JSON. The JSON must parse correctly.
+CRITICAL OUTPUT FORMAT: After your research, output your final answer wrapped in these exact delimiters on their own lines:
+===JSON_START===
+{ ...your json here... }
+===JSON_END===
+
+You may think and search freely before this. But the content between the delimiters must be ONLY the raw JSON object — no markdown, no backticks, no explanation. It must parse correctly with JSON.parse().
 `
 
 export function getModulePrompt(moduleId: ModuleId, input: ResearchInput): string {

@@ -99,14 +99,23 @@ export async function POST(req: Request) {
     // Parse JSON — try multiple strategies since Claude sometimes wraps it in text/code blocks
     let data: Record<string, unknown> = {}
 
-    // Strategy 1: JSON in a markdown code block (```json ... ``` or ``` ... ```)
-    const codeBlockMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/)
-    if (codeBlockMatch) {
-      const parsed = tryParse(codeBlockMatch[1].trim())
+    // Strategy 1: Explicit delimiters ===JSON_START=== / ===JSON_END=== (most reliable)
+    const delimiterMatch = rawText.match(/===JSON_START===([\s\S]*?)===JSON_END===/)
+    if (delimiterMatch) {
+      const parsed = tryParse(delimiterMatch[1].trim())
       if (parsed) data = parsed
     }
 
-    // Strategy 2: Walk backwards from last '}' to find the real outermost JSON object
+    // Strategy 2: JSON in a markdown code block (```json ... ``` or ``` ... ```)
+    if (!Object.keys(data).length) {
+      const codeBlockMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/)
+      if (codeBlockMatch) {
+        const parsed = tryParse(codeBlockMatch[1].trim())
+        if (parsed) data = parsed
+      }
+    }
+
+    // Strategy 3: Walk backwards from last '}' to find the real outermost JSON object
     if (!Object.keys(data).length) {
       const extracted = extractOutermostJSON(rawText)
       if (extracted) {
@@ -115,7 +124,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // Strategy 3: Bare JSON (entire rawText is JSON)
+    // Strategy 4: Bare JSON (entire rawText is JSON)
     if (!Object.keys(data).length) {
       const parsed = tryParse(rawText.trim())
       if (parsed) data = parsed
