@@ -3,6 +3,26 @@ import { getModulePrompt } from '@/lib/research/modules'
 import { getScrapeTargets, scrapeUrls, formatScrapedContext } from '@/lib/research/firecrawl'
 import type { ModuleId, ResearchInput } from '@/lib/research/types'
 
+function tryParse(str: string): Record<string, unknown> | null {
+  try { return JSON.parse(str) } catch { /* fall through */ }
+  try { return JSON.parse(str.replace(/,(\s*[}\]])/g, '$1')) } catch { /* fall through */ }
+  return null
+}
+
+function extractOutermostJSON(text: string): string | null {
+  const end = text.lastIndexOf('}')
+  if (end === -1) return null
+  let depth = 0
+  for (let i = end; i >= 0; i--) {
+    if (text[i] === '}') depth++
+    if (text[i] === '{') {
+      depth--
+      if (depth === 0) return text.slice(i, end + 1)
+    }
+  }
+  return null
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json()
@@ -17,7 +37,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 })
     }
 
-    // Step 1: Firecrawl — scrape relevant pages in parallel before calling Claude
+    // Step 1: Firecrawl — scrape relevant pages (with short timeout to stay within Vercel limits)
     let scrapedContext = ''
     const firecrawlKey = process.env.FIRECRAWL_API_KEY
     if (firecrawlKey) {
@@ -28,14 +48,15 @@ export async function POST(req: Request) {
       }
     }
 
-    // Step 2: Build the module prompt, injecting scraped content if available
     const basePrompt = getModulePrompt(moduleId, input)
-    const prompt = scrapedContext
+    const promptWithContext = scrapedContext
       ? `${scrapedContext}\n\n${basePrompt}`
       : basePrompt
 
-    // Step 3: Call Claude with web search
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // ── STEP 2: RESEARCH ─────────────────────────────────────────────────────
+    // Call Sonnet with web search. Goal: gather thorough findings as free text.
+    // No JSON output required here — just comprehensive research paragraphs.
+    const researchRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -45,129 +66,67 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 16000,
-        system: 'You are a research analyst. After completing your research, you MUST wrap your final JSON output in these exact markers:\n===JSON_START===\n{...json...}\n===JSON_END===\nNothing should come after ===JSON_END===.',
+        max_tokens: 8000,
+        system: 'You are a research analyst. Use web search to gather thorough findings. Write your findings as detailed paragraphs with specific data points, dates, and sources. Do NOT output JSON — just write clear research notes.',
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        messages: [{ role: 'user', content: prompt }],
+        messages: [{ role: 'user', content: promptWithContext }],
       }),
     })
 
-    if (!response.ok) {
-      const err = await response.text()
-      return NextResponse.json({ error: `Claude API error: ${err}` }, { status: 500 })
+    if (!researchRes.ok) {
+      const err = await researchRes.text()
+      return NextResponse.json({ error: `Claude research error: ${err}` }, { status: 500 })
     }
 
-    const result = await response.json()
+    const researchResult = await researchRes.json()
 
-    // Warn if response was cut off due to token limit
-    if (result.stop_reason === 'max_tokens') {
-      console.warn(`[research/module] ${moduleId} hit max_tokens — response may be truncated`)
-    }
-
-    // Extract text content from the response
+    // Collect the research text (shown in UI as rawText)
     let rawText = ''
-    for (const block of (result.content ?? []) as Array<{ type: string; text?: string }>) {
-      if (block.type === 'text' && block.text) {
-        rawText += block.text
-      }
+    for (const block of (researchResult.content ?? []) as Array<{ type: string; text?: string }>) {
+      if (block.type === 'text' && block.text) rawText += block.text
     }
 
-    // Helper: try JSON.parse, then retry after stripping trailing commas
-    function tryParse(str: string): Record<string, unknown> | null {
-      try { return JSON.parse(str) } catch { /* fall through */ }
-      try { return JSON.parse(str.replace(/,(\s*[}\]])/g, '$1')) } catch { /* fall through */ }
-      return null
+    // ── STEP 3: STRUCTURE ────────────────────────────────────────────────────
+    // Call Haiku WITHOUT web search. Goal: format the research into the JSON schema.
+    // This call has one job — convert research text to structured JSON.
+    const structureRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 16000,
+        system: 'You are a JSON formatter. Output ONLY a valid JSON object. No text before or after it. No markdown backticks. No explanation. Start with { and end with }.',
+        messages: [{
+          role: 'user',
+          content: `${basePrompt}\n\n---\nUse the following research findings to populate the JSON above:\n\n${rawText}`,
+        }],
+      }),
+    })
+
+    if (!structureRes.ok) {
+      const err = await structureRes.text()
+      return NextResponse.json({ error: `Claude structure error: ${err}` }, { status: 500 })
     }
 
-    // Helper: walk backwards from the last '}' to find its matching '{'.
-    // This correctly handles preamble text that itself contains '{' characters
-    // (e.g. "Based on my research {date: 2025}: { ...json... }").
-    function extractOutermostJSON(text: string): string | null {
-      const end = text.lastIndexOf('}')
-      if (end === -1) return null
-      let depth = 0
-      for (let i = end; i >= 0; i--) {
-        if (text[i] === '}') depth++
-        if (text[i] === '{') {
-          depth--
-          if (depth === 0) return text.slice(i, end + 1)
-        }
-      }
-      return null
+    const structureResult = await structureRes.json()
+
+    let structuredText = ''
+    for (const block of (structureResult.content ?? []) as Array<{ type: string; text?: string }>) {
+      if (block.type === 'text' && block.text) structuredText += block.text
     }
 
-    // Parse JSON — try multiple strategies since Claude sometimes wraps it in text/code blocks
-    let data: Record<string, unknown> = {}
-
-    // Strategy 1: Explicit delimiters ===JSON_START=== / ===JSON_END=== (most reliable)
-    const delimiterMatch = rawText.match(/===JSON_START===([\s\S]*?)===JSON_END===/)
-    if (delimiterMatch) {
-      const parsed = tryParse(delimiterMatch[1].trim())
-      if (parsed) data = parsed
-    }
-
-    // Strategy 2: JSON in a markdown code block (```json ... ``` or ``` ... ```)
-    if (!Object.keys(data).length) {
-      const codeBlockMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/)
-      if (codeBlockMatch) {
-        const parsed = tryParse(codeBlockMatch[1].trim())
-        if (parsed) data = parsed
-      }
-    }
-
-    // Strategy 3: Walk backwards from last '}' to find the real outermost JSON object
-    if (!Object.keys(data).length) {
-      const extracted = extractOutermostJSON(rawText)
-      if (extracted) {
-        const parsed = tryParse(extracted)
-        if (parsed) data = parsed
-      }
-    }
-
-    // Strategy 4: Bare JSON (entire rawText is JSON)
-    if (!Object.keys(data).length) {
-      const parsed = tryParse(rawText.trim())
-      if (parsed) data = parsed
-    }
-
-    // Recovery: if all parse strategies failed, ask Claude to extract the JSON from its own output
-    if (!Object.keys(data).length && rawText.length > 0) {
-      console.error(`[research/module] ${moduleId} parse failed — attempting JSON recovery. rawText start: ${rawText.slice(0, 300)}`)
-      try {
-        const recoveryRes = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-          },
-          body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
-            max_tokens: 16000,
-            system: 'You extract JSON from text. Output ONLY the JSON object, nothing else. No markdown, no explanation.',
-            messages: [{
-              role: 'user',
-              content: `Extract the JSON object from this text and output it with no other text:\n\n${rawText}`,
-            }],
-          }),
-        })
-        if (recoveryRes.ok) {
-          const recoveryResult = await recoveryRes.json()
-          let recoveryText = ''
-          for (const block of (recoveryResult.content ?? []) as Array<{ type: string; text?: string }>) {
-            if (block.type === 'text' && block.text) recoveryText += block.text
-          }
-          const recovered = tryParse(recoveryText.trim())
-          if (recovered && Object.keys(recovered).length) {
-            data = recovered
-          }
-        }
-      } catch {
-        // recovery failed — fall through to parse_error
-      }
-    }
+    // Parse — Haiku should output clean JSON, but keep fallbacks
+    let data: Record<string, unknown> =
+      tryParse(structuredText.trim()) ||
+      tryParse(extractOutermostJSON(structuredText) ?? '') ||
+      {}
 
     if (!Object.keys(data).length) {
+      console.error(`[research/module] ${moduleId} structure parse failed. structuredText: ${structuredText.slice(0, 300)}`)
       data = { raw_text: rawText, parse_error: true }
     }
 

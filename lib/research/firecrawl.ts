@@ -2,7 +2,7 @@ import type { ModuleId, ResearchInput } from './types'
 
 const FIRECRAWL_API = 'https://api.firecrawl.dev/v1/scrape'
 const MAX_CHARS_PER_PAGE = 3000
-const SCRAPE_TIMEOUT_MS = 12000
+const SCRAPE_TIMEOUT_MS = 6000
 
 // Scrape a single URL and return its markdown content, or null on failure
 async function scrapeUrl(url: string, apiKey: string): Promise<string | null> {
