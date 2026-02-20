@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server'
 import { getSynthesisPrompt } from '@/lib/research/modules'
 import type { ModuleResult, ResearchInput } from '@/lib/research/types'
 
+function tryParse(str: string): Record<string, unknown> | null {
+  try { return JSON.parse(str) } catch { /* fall through */ }
+  try { return JSON.parse(str.replace(/,(\s*[}\]])/g, '$1')) } catch { /* fall through */ }
+  return null
+}
+
 export async function POST(req: Request) {
   try {
     const { input, modules }: { input: ResearchInput; modules: ModuleResult[] } = await req.json()
@@ -28,7 +34,8 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 3000,
+        max_tokens: 16000,
+        system: 'You are a research analyst. You MUST end your response with a valid JSON object wrapped in ===JSON_START=== and ===JSON_END=== delimiters.',
         messages: [{ role: 'user', content: prompt }],
       }),
     })
@@ -42,36 +49,48 @@ export async function POST(req: Request) {
 
     let rawText = ''
     for (const block of (result.content ?? []) as Array<{ type: string; text?: string }>) {
-      if (block.type === 'text' && block.text) {
-        rawText += block.text
-      }
+      if (block.type === 'text' && block.text) rawText += block.text
     }
 
     let data: Record<string, unknown> = {}
-    try {
+
+    // Strategy 1: Explicit delimiters (most reliable)
+    const delimiterMatch = rawText.match(/===JSON_START===([\s\S]*?)===JSON_END===/)
+    if (delimiterMatch) {
+      const parsed = tryParse(delimiterMatch[1].trim())
+      if (parsed) data = parsed
+    }
+
+    // Strategy 2: Markdown code block
+    if (!Object.keys(data).length) {
       const codeBlockMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/)
       if (codeBlockMatch) {
-        data = JSON.parse(codeBlockMatch[1].trim())
-      } else {
-        const start = rawText.indexOf('{')
-        const end = rawText.lastIndexOf('}')
-        if (start !== -1 && end !== -1 && end > start) {
-          data = JSON.parse(rawText.slice(start, end + 1))
-        } else {
-          data = JSON.parse(rawText.trim())
+        const parsed = tryParse(codeBlockMatch[1].trim())
+        if (parsed) data = parsed
+      }
+    }
+
+    // Strategy 3: Walk backwards from last '}' to find outermost JSON
+    if (!Object.keys(data).length) {
+      const end = rawText.lastIndexOf('}')
+      if (end !== -1) {
+        let depth = 0
+        for (let i = end; i >= 0; i--) {
+          if (rawText[i] === '}') depth++
+          if (rawText[i] === '{') {
+            depth--
+            if (depth === 0) {
+              const parsed = tryParse(rawText.slice(i, end + 1))
+              if (parsed) { data = parsed; break }
+            }
+          }
         }
       }
-    } catch {
-      try {
-        const jsonLike = rawText.match(/\{[\s\S]*\}/)
-        if (jsonLike) {
-          data = JSON.parse(jsonLike[0])
-        } else {
-          data = { raw_text: rawText, parse_error: true }
-        }
-      } catch {
-        data = { raw_text: rawText, parse_error: true }
-      }
+    }
+
+    if (!Object.keys(data).length) {
+      console.error('Synthesis parse failed. rawText start:', rawText.slice(0, 300))
+      data = { parse_error: true, raw_text: rawText }
     }
 
     return NextResponse.json(data)
