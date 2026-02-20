@@ -46,6 +46,7 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 8000,
+        system: 'You are a research analyst. You MUST end your response with a valid JSON object. The JSON must be the LAST thing in your response. Do not add any text, commentary, or explanation after the closing }.',
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{ role: 'user', content: prompt }],
       }),
@@ -118,6 +119,43 @@ export async function POST(req: Request) {
     if (!Object.keys(data).length) {
       const parsed = tryParse(rawText.trim())
       if (parsed) data = parsed
+    }
+
+    // Recovery: if all parse strategies failed, ask Claude to extract the JSON from its own output
+    if (!Object.keys(data).length && rawText.length > 0) {
+      console.error(`[research/module] ${moduleId} parse failed — attempting JSON recovery. rawText start: ${rawText.slice(0, 300)}`)
+      try {
+        const recoveryRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 8000,
+            system: 'You extract JSON from text. Output ONLY the JSON object, nothing else. No markdown, no explanation.',
+            messages: [{
+              role: 'user',
+              content: `Extract the JSON object from this text and output it with no other text:\n\n${rawText}`,
+            }],
+          }),
+        })
+        if (recoveryRes.ok) {
+          const recoveryResult = await recoveryRes.json()
+          let recoveryText = ''
+          for (const block of (recoveryResult.content ?? []) as Array<{ type: string; text?: string }>) {
+            if (block.type === 'text' && block.text) recoveryText += block.text
+          }
+          const recovered = tryParse(recoveryText.trim())
+          if (recovered && Object.keys(recovered).length) {
+            data = recovered
+          }
+        }
+      } catch {
+        // recovery failed — fall through to parse_error
+      }
     }
 
     if (!Object.keys(data).length) {
