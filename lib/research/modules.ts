@@ -523,5 +523,10 @@ The opportunity_score should be between 1-10. Sum the "impact" values of criteri
 
 For strategic_insights: These should be DIFFERENT from talking_points. Talking points are short hooks for cold outreach. Strategic insights are deeper, more analytical explanations for discovery calls — explain the root cause, the business impact with numbers, and the specific Yuno solution architecture that addresses it. Think "what would a payment consultant say in a 30-minute discovery call."
 
-For similar_companies: Based on what you know about the research company's industry, geography, and payment complexity, identify 3-5 direct competitors and 3-5 industry peers who likely face the same payment challenges. These become a prospecting list for the SDR. Score each one 1-10 based on likely Yuno fit (multi-market = +2, no orchestrator = +2, many APM gaps = +2, active expansion = +2, strong financials = +2).`
+For similar_companies: Based on what you know about the research company's industry, geography, and payment complexity, identify 3-5 direct competitors and 3-5 industry peers who likely face the same payment challenges. These become a prospecting list for the SDR. Score each one 1-10 based on likely Yuno fit (multi-market = +2, no orchestrator = +2, many APM gaps = +2, active expansion = +2, strong financials = +2).
+
+REMINDER — OUTPUT FORMAT: Wrap your entire JSON response in these exact markers:
+===JSON_START===
+{ ...your json... }
+===JSON_END===`
 }

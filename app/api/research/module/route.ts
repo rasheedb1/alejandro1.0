@@ -46,7 +46,7 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 16000,
-        system: 'You are a research analyst. You MUST end your response with a valid JSON object. The JSON must be the LAST thing in your response. Do not add any text, commentary, or explanation after the closing }.',
+        system: 'You are a research analyst. After completing your research, you MUST wrap your final JSON output in these exact markers:\n===JSON_START===\n{...json...}\n===JSON_END===\nNothing should come after ===JSON_END===.',
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{ role: 'user', content: prompt }],
       }),
