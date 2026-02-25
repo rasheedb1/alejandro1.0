@@ -75,8 +75,8 @@ export async function POST(req: Request) {
     }
 
     // ── STEP 3: STRUCTURE ────────────────────────────────────────────────────
-    // Call Haiku WITHOUT web search. Goal: format the research into the JSON schema.
-    // This call has one job — convert research text to structured JSON.
+    // Call Sonnet WITHOUT web search. Single job: convert research text → JSON.
+    // Using Sonnet (not Haiku) for reliable instruction-following on complex schemas.
     const structureRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -85,12 +85,12 @@ export async function POST(req: Request) {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'claude-sonnet-4-6',
         max_tokens: 16000,
-        system: 'You are a JSON formatter. Output ONLY a valid JSON object. No text before or after it. No markdown backticks. No explanation. Start with { and end with }.',
+        system: 'You are a JSON formatter. Your ONLY output must be a single valid JSON object. Start your response with { and end with }. No backticks, no markdown, no explanation, no text outside the JSON object.',
         messages: [{
           role: 'user',
-          content: `${basePrompt}\n\n---\nUse the following research findings to populate the JSON above:\n\n${rawText}`,
+          content: `${basePrompt}\n\n---\nResearch findings — use these to populate every field in the JSON schema above:\n\n${rawText}`,
         }],
       }),
     })
@@ -107,14 +107,17 @@ export async function POST(req: Request) {
       if (block.type === 'text' && block.text) structuredText += block.text
     }
 
-    // Parse — Haiku should output clean JSON, but keep fallbacks
+    // Strip leading/trailing backticks that Sonnet occasionally adds
+    const cleaned = structuredText.trim().replace(/^`+(?:json)?[\s]*/i, '').replace(/[\s]*`+$/, '')
+
     let data: Record<string, unknown> =
-      tryParse(structuredText.trim()) ||
+      tryParse(cleaned) ||
+      tryParse(extractOutermostJSON(cleaned) ?? '') ||
       tryParse(extractOutermostJSON(structuredText) ?? '') ||
       {}
 
     if (!Object.keys(data).length) {
-      console.error(`[research/module] ${moduleId} structure parse failed. structuredText: ${structuredText.slice(0, 300)}`)
+      console.error(`[research/module] ${moduleId} structure parse failed.\nstructuredText[:300]: ${structuredText.slice(0, 300)}\ncleaned[:300]: ${cleaned.slice(0, 300)}`)
       data = { raw_text: rawText, parse_error: true }
     }
 
