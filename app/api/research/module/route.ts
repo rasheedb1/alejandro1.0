@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getModulePrompt } from '@/lib/research/modules'
-import { getScrapeTargets, scrapeUrls, formatScrapedContext } from '@/lib/research/firecrawl'
 import type { ModuleId, ResearchInput } from '@/lib/research/types'
+
+// Allow up to 5 minutes — two sequential Claude calls can take 60-120s
+export const maxDuration = 300
 
 function tryParse(str: string): Record<string, unknown> | null {
   try { return JSON.parse(str) } catch { /* fall through */ }
@@ -37,21 +39,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 })
     }
 
-    // Step 1: Firecrawl — scrape relevant pages (with short timeout to stay within Vercel limits)
-    let scrapedContext = ''
-    const firecrawlKey = process.env.FIRECRAWL_API_KEY
-    if (firecrawlKey) {
-      const targets = getScrapeTargets(moduleId, input)
-      if (targets.length > 0) {
-        const scrapedPages = await scrapeUrls(targets, firecrawlKey)
-        scrapedContext = formatScrapedContext(scrapedPages, input.companyName)
-      }
-    }
-
     const basePrompt = getModulePrompt(moduleId, input)
-    const promptWithContext = scrapedContext
-      ? `${scrapedContext}\n\n${basePrompt}`
-      : basePrompt
 
     // ── STEP 2: RESEARCH ─────────────────────────────────────────────────────
     // Call Sonnet with web search. Goal: gather thorough findings as free text.
@@ -69,7 +57,7 @@ export async function POST(req: Request) {
         max_tokens: 8000,
         system: 'You are a research analyst. Use web search to gather thorough findings. Write your findings as detailed paragraphs with specific data points, dates, and sources. Do NOT output JSON — just write clear research notes.',
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        messages: [{ role: 'user', content: promptWithContext }],
+        messages: [{ role: 'user', content: basePrompt }],
       }),
     })
 

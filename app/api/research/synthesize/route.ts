@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { getSynthesisPrompt } from '@/lib/research/modules'
 import type { ModuleResult, ResearchInput } from '@/lib/research/types'
 
+export const maxDuration = 300
+
 function tryParse(str: string): Record<string, unknown> | null {
   try { return JSON.parse(str) } catch { /* fall through */ }
   try { return JSON.parse(str.replace(/,(\s*[}\]])/g, '$1')) } catch { /* fall through */ }
